@@ -64,6 +64,7 @@
         "ernestdefoe/member-map": "^1.0",
         "flarum/gdpr": "^2.0",
         "flarum/phpstan": "^2.0",
+        "flarum/suspend": "^2.0",
         "flarum/testing": "^2.0"
     },
     "scripts": {

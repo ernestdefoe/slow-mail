@@ -75,4 +75,25 @@ class DeliveryTest extends TestCase
         $this->assertSame(404, $this->call('GET', '/api/slow-mail/letters/'.$id, 3)[0]);
         $this->assertSame('returned', $this->call('GET', '/api/slow-mail', 2)[1]['outbox'][0]['status']);
     }
+
+    #[Test]
+    public function a_sender_suspended_or_without_slow_mail_since_sending_has_the_letter_returned()
+    {
+        $this->extension('flarum-suspend', 'ernestdefoe-member-map', 'ernestdefoe-slow-mail');
+        [, $a] = $this->write(2, 3);
+        [, $b] = $this->write(4, 3);
+
+        $this->database()->table('users')->where('id', 2)->update(['suspended_until' => Carbon::now()->addWeek()]);
+        // Mira loses Slow Mail: members no longer have the permission, only moderators.
+        $this->database()->table('group_permission')->where('permission', 'slow-mail.send')->update(['group_id' => \Flarum\Group\Group::MODERATOR_ID]);
+        $this->app()->getContainer()->make(\Flarum\Group\PermissionCache::class)->flush();
+
+        foreach ([$a, $b] as $sent) {
+            $this->arrive($sent['letter']['id']);
+            $row = $this->database()->table('slow_mail_letters')->where('id', $sent['letter']['id'])->first();
+            $this->assertNull($row->delivered_at);
+            $this->assertNotNull($row->returned_at);
+        }
+        $this->assertSame(0, $this->database()->table('notifications')->count());
+    }
 }

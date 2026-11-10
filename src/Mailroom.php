@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use ErnestDefoe\SlowMail\Notification\LetterArrivedBlueprint;
 use ErnestDefoe\SlowMail\Notification\LetterDeliveredBlueprint;
 use Flarum\Notification\NotificationSyncer;
+use Flarum\User\User;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -100,8 +101,11 @@ class Mailroom
         $now = Carbon::now();
         $sender = $letter->sender;
         $recipient = $letter->recipient;
-        // Blocked since it was sent: it comes back instead. (Letters turned off later still arrive: they were welcome when sent.)
-        $returned = ! $sender || ! $recipient || $this->rules->blocked($letter->sender_id, $letter->recipient_id);
+        // It comes back instead when, since it was sent, they blocked each other, or the sender was
+        // suspended or lost Slow Mail (moderation must stop letters already on their way).
+        // Letters turned off later still arrive: they were welcome when sent.
+        $returned = ! $sender || ! $recipient || ! $this->senderInGoodStanding($sender)
+            || $this->rules->blocked($letter->sender_id, $letter->recipient_id);
         $column = $returned ? 'returned_at' : 'delivered_at';
 
         $won = Letter::query()->whereKey($letter->id)->whereNull('delivered_at')->whereNull('returned_at')
@@ -116,6 +120,16 @@ class Mailroom
         }
 
         return ! $returned;
+    }
+
+    private function senderInGoodStanding(User $sender): bool
+    {
+        $until = $sender->getAttribute('suspended_until');
+        if ($until && Carbon::parse($until)->isFuture()) {
+            return false;
+        }
+
+        return $sender->hasPermission(Settings::SEND);
     }
 
     /** Notifications still owed (a failure while delivering): retried by the next run. */
