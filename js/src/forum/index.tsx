@@ -70,7 +70,10 @@ app.initializers.add('ernestdefoe/slow-mail', () => {
   // String form: IndexSidebar lives in a lazy chunk, and extending an imported copy patches one core never renders.
   extend('flarum/forum/components/IndexSidebar', 'navItems', function (items: ItemList<any>) {
     if (!app.session.user || !app.forum.attribute('slowMailCanSend') || !app.forum.attribute('slowMailNav')) return;
-    items.add('slow-mail', LinkButton.component({ href: app.route('slow-mail'), icon: 'fas fa-envelope' }, t('nav')), 77);
+    // Active on every Slow Mail page (outbox, a letter…), so phones' header names it there too.
+    const href = app.route('slow-mail');
+    const active = window.location.pathname === href || window.location.pathname.startsWith(href + '/');
+    items.add('slow-mail', LinkButton.component({ href, icon: 'fas fa-envelope', active }, t('nav')), 77);
   });
 
   extend(UserControls, 'userControls', function (items: ItemList<any>, user: any) {
