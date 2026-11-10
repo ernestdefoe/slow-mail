@@ -31,6 +31,8 @@ class Mailroom
     private const LOCK = 'slow-mail.delivering';
     private const NONE = 'none';
     private const BATCH = 200;
+    /** The cached next arrival is re-read from the database at least this often, so a lost update can't stall visit delivery. */
+    private const TTL = 3600;
 
     public function __construct(
         private readonly NotificationSyncer $notifications,
@@ -87,7 +89,7 @@ class Mailroom
     {
         $next = $this->cache->get(self::NEXT);
         if ($next === null || $next === self::NONE || (int) $next > $arrives->getTimestamp()) {
-            $this->cache->forever(self::NEXT, (string) $arrives->getTimestamp());
+            $this->cache->put(self::NEXT, (string) $arrives->getTimestamp(), self::TTL);
         }
     }
 
@@ -159,7 +161,7 @@ class Mailroom
     {
         $next = Letter::query()->whereNull('delivered_at')->whereNull('returned_at')->min('arrives_at');
         $value = $next ? (string) Carbon::parse($next, 'UTC')->getTimestamp() : self::NONE;
-        $this->cache->forever(self::NEXT, $value);
+        $this->cache->put(self::NEXT, $value, self::TTL);
 
         return $value;
     }
