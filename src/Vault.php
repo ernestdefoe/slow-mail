@@ -4,6 +4,7 @@ namespace ErnestDefoe\SlowMail;
 
 use Flarum\Foundation\Config;
 use Flarum\Foundation\Paths;
+use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Database\ConnectionInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -22,11 +23,15 @@ use RuntimeException;
  * database and no key, the key was lost (a restore without storage/, a new
  * server): a fresh key would read none of them and quietly seal new ones
  * under it, so sending stops (KeyMissing) and the log says why, loudly.
+ * A key that changes later is caught by its fingerprint (assertSameKey).
  * Reading never throws: a letter it can't decrypt shows as unreadable.
  */
 class Vault
 {
     private const PREFIX = 'sm1:';
+
+    /** Where the key's fingerprint is kept (not the key). */
+    public const CHECK = 'slow-mail.key_check';
 
     private ?string $key = null;
 
@@ -35,12 +40,37 @@ class Vault
         private readonly Config $config,
         private readonly ConnectionInterface $db,
         private readonly LoggerInterface $log,
+        private readonly SettingsRepositoryInterface $settings,
     ) {
     }
 
     public function seal(string $plain, string $context): string
     {
+        $this->assertSameKey();
+
         return self::PREFIX.base64_encode($this->sealBytes($plain, $context));
+    }
+
+    /**
+     * The key in use must be the one the letters were written with. Its
+     * fingerprint (an HMAC of a fixed word, which says nothing about the key)
+     * is saved with the first letter; a different key afterwards (a new
+     * config.php value, a key file from another server) would write letters
+     * nobody could read next to old ones nobody can read now, so sending
+     * stops (KeyMissing, 503) and the log says why, loudly.
+     */
+    public function assertSameKey(): void
+    {
+        $fingerprint = base64_encode($this->derive('check'));
+        $saved = (string) $this->settings->get(self::CHECK);
+
+        if ($saved === '') {
+            $this->settings->set(self::CHECK, $fingerprint);
+        } elseif (! hash_equals($saved, $fingerprint)) {
+            $this->log->critical('[slow-mail] The encryption key is not the one the letters were written with (config.php slow-mail.key or storage/slow-mail/key changed). Restore the old key from a backup. Sending is stopped until then.');
+
+            throw new KeyMissing('Slow Mail\'s key has changed: restore the original key from a backup.');
+        }
     }
 
     /** null when the text cannot be decrypted (wrong key, damaged row). */
