@@ -18,16 +18,19 @@ class Pals
     public function of(User $actor, int $limit = 200): array
     {
         $me = (int) $actor->id;
+        // 🚨 The id is written into the SQL (an int, cast above), not bound: PostgreSQL treats the same CASE
+        // with two different placeholders in SELECT and GROUP BY as two expressions and refuses the query.
+        $pal = "case when sender_id = $me then recipient_id else sender_id end";
 
         $rows = Letter::query()->toBase()
             ->whereNotNull('delivered_at')
             ->where(fn ($q) => $q->where('sender_id', $me)->orWhere('recipient_id', $me))
-            ->selectRaw('case when sender_id = ? then recipient_id else sender_id end as pal', [$me])
-            ->selectRaw('sum(case when sender_id = ? then 1 else 0 end) as sent', [$me])
-            ->selectRaw('sum(case when sender_id = ? then 0 else 1 end) as received', [$me])
-            ->selectRaw('sum(case when sender_id <> ? and read_at is null and recipient_hidden = ? then 1 else 0 end) as unread', [$me, false])
+            ->selectRaw("$pal as pal")
+            ->selectRaw("sum(case when sender_id = $me then 1 else 0 end) as sent")
+            ->selectRaw("sum(case when sender_id = $me then 0 else 1 end) as received")
+            ->selectRaw("sum(case when sender_id <> $me and read_at is null and recipient_hidden = ? then 1 else 0 end) as unread", [false])
             ->selectRaw('max(delivered_at) as last_at')
-            ->groupByRaw('case when sender_id = ? then recipient_id else sender_id end', [$me])
+            ->groupByRaw($pal)
             ->orderByDesc('last_at')
             ->limit($limit)
             ->get();
