@@ -3,6 +3,7 @@ import Component from 'flarum/common/Component';
 import Button from 'flarum/common/components/Button';
 import Link from 'flarum/common/components/Link';
 import Icon from 'flarum/common/components/Icon';
+import extractText from 'flarum/common/utils/extractText';
 import type Mithril from 'mithril';
 import { about, call, countryName, shortDate, t, userUrl, type Letter } from '../api';
 import { Corner, avatar } from './Envelopes';
@@ -77,10 +78,12 @@ export default class LetterView extends Component<Attrs> {
             )}
             <span className="SlowMailLetter-meta">
               {from ? t('letter.sent_from', { date: shortDate(letter.sentAt), place: from }) : t('letter.sent', { date: shortDate(letter.sentAt) })}
-              {letter.deliveredAt ? ' · ' + t('letter.arrived', { date: shortDate(letter.deliveredAt), time: about(letter.travelHours) }) : ''}
+              {letter.deliveredAt
+                ? ' · ' + extractText(t('letter.arrived', { date: shortDate(letter.deliveredAt), time: about(letter.travelHours) }))
+                : ''}
             </span>
           </div>
-          <Corner letter={letter} />
+          {Corner({ letter })}
         </header>
         <div className="SlowMailLetter-paper">
           {letter.unreadable ? (
@@ -127,7 +130,7 @@ export default class LetterView extends Component<Attrs> {
             <span />
           </div>
           <div className="SlowMailOpening-front">
-            <Corner letter={letter} />
+            {Corner({ letter })}
             <span className="SlowMailOpening-name">{letter.with?.displayName}</span>
           </div>
           <div className="SlowMailOpening-flap">

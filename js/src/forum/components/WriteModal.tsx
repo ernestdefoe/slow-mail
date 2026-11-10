@@ -154,7 +154,7 @@ export default class WriteModal extends FormModal<Attrs> {
               title={extractText(t(`stamps.${name}`))}
               onclick={() => this.choose(name)}
             >
-              <Stamp name={name} country={country} title={extractText(t(`stamps.${name}`))} />
+              {Stamp({ name, country, title: extractText(t(`stamps.${name}`)) })}
             </button>
           ))}
         </div>
@@ -186,9 +186,7 @@ export default class WriteModal extends FormModal<Attrs> {
       <div className="Modal-body SlowMailWrite-done">
         <div className="SlowMailWrite-fold" aria-hidden="true">
           <span className="SlowMailWrite-foldSheet" />
-          <span className="SlowMailWrite-foldEnvelope">
-            <Stamp name={this.stamp} country={this.attrs.home?.country} />
-          </span>
+          <span className="SlowMailWrite-foldEnvelope">{Stamp({ name: this.stamp, country: this.attrs.home?.country })}</span>
         </div>
         <p className="SlowMailWrite-doneText">{t('write.sent', { name: this.to?.displayName, time: about(this.quote?.hours || 0) })}</p>
         <Button className="Button Button--primary" onclick={() => this.hide()}>
