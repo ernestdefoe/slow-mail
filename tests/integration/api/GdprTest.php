@@ -76,6 +76,9 @@ class GdprTest extends TestCase
         $this->assertStringNotContainsString('lighthouse', $byModerator);
 
         $this->assertSame(2, substr_count($this->export(2, 2), self::MARKER), 'the writer has both');
+
+        // A moderator's export of the writer: only the letter that arrived, not the one still travelling.
+        $this->assertSame(1, substr_count($this->export(2, 1), '"sent"'));
     }
 
     #[Test]

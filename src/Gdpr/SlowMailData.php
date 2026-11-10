@@ -46,7 +46,10 @@ class SlowMailData extends Type
         $self = ExportActor::isSelf($id);
         $export = [];
 
-        $letters = Letter::query()->where('sender_id', $id)
+        // Their own export: what they sent (on its way or not) and what reached them. Anyone else's
+        // export of them: only letters that have arrived, so it can't show a letter still travelling.
+        $letters = Letter::query()
+            ->where(fn ($q) => $q->where('sender_id', $id)->when(! $self, fn ($q) => $q->whereNotNull('delivered_at')))
             ->orWhere(fn ($q) => $q->where('recipient_id', $id)->whereNotNull('delivered_at'))
             ->orderBy('id')->get();
 
