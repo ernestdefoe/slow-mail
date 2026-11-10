@@ -4,6 +4,7 @@ namespace ErnestDefoe\SlowMail\Gdpr;
 
 use ErnestDefoe\SlowMail\Forget;
 use ErnestDefoe\SlowMail\Letter;
+use ErnestDefoe\SlowMail\Report;
 use ErnestDefoe\SlowMail\Seeker;
 use ErnestDefoe\SlowMail\Vault;
 use Flarum\Gdpr\Data\Type;
@@ -15,7 +16,7 @@ use Illuminate\Database\ConnectionInterface;
  * The words, who they wrote to and where from only when the member exports
  * their own data (ExportActor): a moderator's export of someone else says
  * how many letters, when, and how long, nothing more. Plus their pen-pal
- * listing and blocks.
+ * listing, blocks and the reports they filed.
  *
  * Erasure (and anonymising) deletes every letter they wrote or received,
  * their listing and their blocks: a letter is between two people, and one of
@@ -74,6 +75,13 @@ class SlowMailData extends Type
 
         if ($seeker = Seeker::query()->find($id)) {
             $export[] = ['slow-mail/pen-pal-listing.json' => $this->encodeForExport(['interests' => $seeker->interestList(), 'region' => $seeker->region])];
+        }
+
+        $reports = Report::query()->where('reporter_id', $id)->get(['reason', 'created_at', 'letter_sent_at']);
+        if ($reports->isNotEmpty()) {
+            $export[] = ['slow-mail/reports.json' => $this->encodeForExport($reports->map(fn (Report $r) => [
+                'reason' => $r->reason, 'reported_at' => $r->created_at->toIso8601String(), 'letter_sent_at' => $r->letter_sent_at->toIso8601String(),
+            ])->all())];
         }
 
         $blocks = resolve(ConnectionInterface::class)->table('slow_mail_blocks')->where('user_id', $id)->pluck('blocked_id')->all();

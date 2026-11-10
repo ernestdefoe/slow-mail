@@ -6,6 +6,7 @@ namespace ErnestDefoe\SlowMail;
 final class Settings
 {
     public const SEND = 'slow-mail.send';
+    public const MODERATE = 'slow-mail.moderate';
 
     public const NAV = 'slow-mail.nav';
     public const KM_PER_DAY = 'slow-mail.km_per_day';

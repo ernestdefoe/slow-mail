@@ -55,6 +55,24 @@ class DeliveredNotification extends Notification {
   }
 }
 
+class ReportedNotification extends Notification {
+  icon() {
+    return 'fas fa-flag';
+  }
+
+  href() {
+    return app.route('slow-mail.reports');
+  }
+
+  content(): Mithril.Children {
+    return t('notification.reported', { username: username(this.attrs.notification.fromUser()) });
+  }
+
+  excerpt(): Mithril.Children {
+    return null;
+  }
+}
+
 app.initializers.add('ernestdefoe/slow-mail', () => {
   const page = () => import('./components/SlowMailPage').then(async (module) => (await module.loadCore(), module));
 
@@ -63,9 +81,11 @@ app.initializers.add('ernestdefoe/slow-mail', () => {
   app.routes['slow-mail.pals'] = { path: '/slow-mail/pals', component: page };
   app.routes['slow-mail.pal'] = { path: '/slow-mail/pals/:id', component: page };
   app.routes['slow-mail.letter'] = { path: '/slow-mail/letters/:id', component: page };
+  app.routes['slow-mail.reports'] = { path: '/slow-mail/reports', component: page };
 
   app.notificationComponents.slowMailArrived = ArrivedNotification;
   app.notificationComponents.slowMailDelivered = DeliveredNotification;
+  app.notificationComponents.slowMailReported = ReportedNotification;
 
   // String form: IndexSidebar lives in a lazy chunk, and extending an imported copy patches one core never renders.
   extend('flarum/forum/components/IndexSidebar', 'navItems', function (items: ItemList<any>) {
@@ -125,5 +145,7 @@ app.initializers.add('ernestdefoe/slow-mail', () => {
   extend('flarum/forum/components/NotificationGrid', 'notificationTypes', function (items: ItemList<any>) {
     items.add('slowMailArrived', { name: 'slowMailArrived', icon: 'fas fa-envelope', label: t('settings.notify_arrived') });
     items.add('slowMailDelivered', { name: 'slowMailDelivered', icon: 'fas fa-envelope-circle-check', label: t('settings.notify_delivered') });
+    if (app.forum.attribute('slowMailCanModerate'))
+      items.add('slowMailReported', { name: 'slowMailReported', icon: 'fas fa-flag', label: t('settings.notify_reported') });
   });
 });

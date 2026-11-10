@@ -1305,3 +1305,36 @@ textarea.FormControl.SlowMailWrite-paper {
     padding-left: 4px;
   }
 }
+
+// ---- reports (moderators) ----
+
+.SlowMailReports {
+  display: grid;
+  gap: 16px;
+  color: var(--text-color);
+}
+
+.SlowMailReportRow-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--text-color);
+
+  > span {
+    flex: 1 1 220px;
+    min-width: 0;
+    font-weight: 600;
+  }
+}
+
+.SlowMailReportRow-reason {
+  margin: 0 0 8px;
+  color: var(--muted-color);
+  font-style: italic;
+}
+
+.SlowMailReportRow-letter {
+  animation: none;
+}

@@ -27,6 +27,7 @@ use ErnestDefoe\SlowMail\Http\DeliverOnVisit;
 use ErnestDefoe\SlowMail\Http\PageContent;
 use ErnestDefoe\SlowMail\Notification\LetterArrivedBlueprint;
 use ErnestDefoe\SlowMail\Notification\LetterDeliveredBlueprint;
+use ErnestDefoe\SlowMail\Notification\LetterReportedBlueprint;
 use Flarum\Api\Context;
 use Flarum\Api\Resource\ForumResource;
 use Flarum\Api\Schema;
@@ -47,7 +48,8 @@ return [
         ->route('/slow-mail/outbox', 'slow-mail.outbox', PageContent::class)
         ->route('/slow-mail/pals', 'slow-mail.pals', PageContent::class)
         ->route('/slow-mail/pals/{id:\d+}', 'slow-mail.pal', PageContent::class)
-        ->route('/slow-mail/letters/{id:\d+}', 'slow-mail.letter', PageContent::class),
+        ->route('/slow-mail/letters/{id:\d+}', 'slow-mail.letter', PageContent::class)
+        ->route('/slow-mail/reports', 'slow-mail.reports', PageContent::class),
 
     (new Extend\Frontend('admin'))
         ->js(__DIR__.'/js/dist/admin.js'),
@@ -63,6 +65,9 @@ return [
         ->post('/slow-mail/letters', 'slow-mail.send', Api\SendController::class)
         ->get('/slow-mail/letters/{id:\d+}', 'slow-mail.show', Api\LetterController::class)
         ->post('/slow-mail/letters/{id:\d+}/read', 'slow-mail.read', Api\LetterController::class)
+        ->post('/slow-mail/letters/{id:\d+}/report', 'slow-mail.report', Api\ReportController::class)
+        ->get('/slow-mail/reports', 'slow-mail.reports', Api\ReportController::class)
+        ->post('/slow-mail/reports/{id:\d+}/resolve', 'slow-mail.reports.resolve', Api\ReportController::class)
         ->delete('/slow-mail/letters/{id:\d+}', 'slow-mail.hide', Api\LetterController::class)
         ->get('/slow-mail/pals/{id:\d+}', 'slow-mail.correspondence', Api\CorrespondenceController::class)
         ->post('/slow-mail/blocks', 'slow-mail.block', Api\BlockController::class)
@@ -81,7 +86,8 @@ return [
 
     (new Extend\Notification())
         ->type(LetterArrivedBlueprint::class, ['alert', 'email'])
-        ->type(LetterDeliveredBlueprint::class, ['alert']),
+        ->type(LetterDeliveredBlueprint::class, ['alert'])
+        ->type(LetterReportedBlueprint::class, ['alert']),
 
     (new Extend\User())
         ->registerPreference('slowMailAccept', fn ($value) => in_array($value, ['everyone', 'pals', 'nobody'], true) ? $value : 'everyone', 'everyone'),
@@ -91,6 +97,8 @@ return [
         ->fields(fn () => [
             Schema\Boolean::make('slowMailCanSend')
                 ->get(fn ($forum, Context $context) => $context->getActor()->can('slow-mail.send')),
+            Schema\Boolean::make('slowMailCanModerate')
+                ->get(fn ($forum, Context $context) => $context->getActor()->can('slow-mail.moderate')),
         ]),
 
     (new Extend\Settings())

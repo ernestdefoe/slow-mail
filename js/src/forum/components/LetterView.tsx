@@ -15,6 +15,7 @@ interface Attrs {
   onreply: () => void;
   onhide: () => void;
   onblock: () => void;
+  onreport: () => void;
 }
 
 /**
@@ -111,6 +112,11 @@ export default class LetterView extends Component<Attrs> {
           {!mine && other ? (
             <Button className="Button Button--flat SlowMailLetter-block" icon="fas fa-ban" onclick={() => this.attrs.onblock()}>
               {t('letter.block', { name: other.displayName })}
+            </Button>
+          ) : null}
+          {!mine && other ? (
+            <Button className="Button Button--flat SlowMailLetter-report" icon="fas fa-flag" onclick={() => this.attrs.onreport()}>
+              {t('letter.report')}
             </Button>
           ) : null}
         </footer>

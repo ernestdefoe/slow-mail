@@ -23,18 +23,31 @@ class Members
     /** @return Builder<User> */
     public function reachable(User $viewer): Builder
     {
-        $query = User::query()->whereVisibleTo($viewer)->where('users.is_email_confirmed', true)
+        $query = $this->withPermission(Settings::SEND)->whereVisibleTo($viewer);
+
+        if ($this->extensions->isEnabled('fof-byobu')) {
+            $query->where(fn ($q) => $q->whereNull('users.blocks_byobu_pd')->orWhere('users.blocks_byobu_pd', false));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Confirmed members holding a permission (through a group, or as admins), not suspended. One query.
+     *
+     * @return Builder<User>
+     */
+    public function withPermission(string $permission): Builder
+    {
+        $query = User::query()->where('users.is_email_confirmed', true)
             ->where(fn ($q) => $q
-                ->whereExists(fn ($sub) => $sub->selectRaw('1')->from('group_permission')->where('permission', Settings::SEND)->where('group_id', Group::MEMBER_ID))
+                ->whereExists(fn ($sub) => $sub->selectRaw('1')->from('group_permission')->where('permission', $permission)->where('group_id', Group::MEMBER_ID))
                 ->orWhereIn('users.id', fn ($sub) => $sub->select('user_id')->from('group_user')->where(fn ($in) => $in
                     ->where('group_id', Group::ADMINISTRATOR_ID)
-                    ->orWhereIn('group_id', fn ($g) => $g->select('group_id')->from('group_permission')->where('permission', Settings::SEND)))));
+                    ->orWhereIn('group_id', fn ($g) => $g->select('group_id')->from('group_permission')->where('permission', $permission)))));
 
         if ($this->extensions->isEnabled('flarum-suspend')) {
             $query->where(fn ($q) => $q->whereNull('users.suspended_until')->orWhere('users.suspended_until', '<', Carbon::now()));
-        }
-        if ($this->extensions->isEnabled('fof-byobu')) {
-            $query->where(fn ($q) => $q->whereNull('users.blocks_byobu_pd')->orWhere('users.blocks_byobu_pd', false));
         }
 
         return $query;

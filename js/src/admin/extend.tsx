@@ -29,5 +29,6 @@ export default [
       ),
       60
     )
-    .permission(() => ({ permission: 'slow-mail.send', icon: 'fas fa-envelope', label: t('permissions.send') }), 'start', 55),
+    .permission(() => ({ permission: 'slow-mail.send', icon: 'fas fa-envelope', label: t('permissions.send') }), 'start', 55)
+    .permission(() => ({ permission: 'slow-mail.moderate', icon: 'fas fa-flag', label: t('permissions.moderate') }), 'moderate', 55),
 ];

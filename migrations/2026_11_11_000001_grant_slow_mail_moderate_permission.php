@@ -1,0 +1,8 @@
+<?php
+
+use Flarum\Database\Migration;
+use Flarum\Group\Group;
+
+return Migration::addPermissions([
+    'slow-mail.moderate' => Group::MODERATOR_ID,
+]);

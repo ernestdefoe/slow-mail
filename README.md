@@ -21,6 +21,7 @@ Pen-pal letters between members of a [Flarum](https://flarum.org) 2 forum that t
 ## Private, really
 
 - Letters are between two members. They're **encrypted** before they're saved, with a key kept in `storage/slow-mail/` and never in the database, and there's no admin view of them.
+- **Report this letter**: a recipient can show one letter to the moderators on purpose (and stop letters from its sender). That letter's words go to a moderators-only Reports list, and nothing else they've written or received does. Moderators get a notification that says nothing of the letter. Letters from a sender who has since been suspended, or lost Slow Mail, are returned instead of delivered.
 - A letter on its way **doesn't exist** for its recipient: not in any page, API answer, search or notification until it arrives.
 - **Travel times can't give away where someone lives.** A distance is only used when each member can already see the other on Member Map, at the precision each chose (city, region or country). It's then rounded to a band hundreds of kilometers wide and jittered by up to a band either way, the same every time for the same two places, so sending again doesn't help. The tests check that any travel time fits at least two whole bands of distances.
 - **Blocks are respected** both ways (Slow Mail's own, and Parley's), and so are "who can send me letters" (everyone, only people who've had a letter from me, nobody), fof/byobu's "block private discussions", Parley's "who can message me" and flarum/messages. A refusal never says which.

@@ -38,7 +38,17 @@ export async function loadCore(): Promise<void> {
   IndexSidebar = sidebar.default || sidebar;
 }
 
-type Mode = 'inbox' | 'outbox' | 'pals' | 'pal' | 'letter';
+type Mode = 'inbox' | 'outbox' | 'pals' | 'pal' | 'letter' | 'reports';
+
+interface ReportRow {
+  id: number;
+  reporter: Person | null;
+  sender: Person | null;
+  reason: string;
+  body: string | null;
+  sentAt: string;
+  reportedAt: string;
+}
 
 const MODES: Record<string, Mode> = {
   'slow-mail': 'inbox',
@@ -46,6 +56,7 @@ const MODES: Record<string, Mode> = {
   'slow-mail.pals': 'pals',
   'slow-mail.pal': 'pal',
   'slow-mail.letter': 'letter',
+  'slow-mail.reports': 'reports',
 };
 
 const REGIONS = ['anywhere', 'country', 'continent', 'far'];
@@ -59,6 +70,7 @@ export default class SlowMailPage extends Page {
   letter: Letter | null = null;
   pal: { user: Person; letters: Envelope[]; canWrite: boolean; blocked: boolean } | null = null;
   matches: Match[] | null = null;
+  reports: ReportRow[] | null = null;
   interests = '';
   region = 'anywhere';
   editing = false;
@@ -105,7 +117,11 @@ export default class SlowMailPage extends Page {
               this.pal = r;
               app.setTitle(extractText(t('pal.title', { name: r.user.displayName })));
             })
-          : Promise.resolve();
+          : this.mode === 'reports' && app.forum.attribute('slowMailCanModerate')
+            ? call<{ reports: ReportRow[] }>('GET', '/reports', undefined, true).then((r) => {
+                this.reports = r.reports;
+              })
+            : Promise.resolve();
 
     return Promise.all([page, extra])
       .then(() => {
@@ -210,6 +226,7 @@ export default class SlowMailPage extends Page {
         {tab('inbox', 'slow-mail', 'fas fa-inbox', t('tabs.inbox'), unread)}
         {tab('outbox', 'slow-mail.outbox', 'fas fa-paper-plane', t('tabs.outbox'), transit)}
         {tab('pals', 'slow-mail.pals', 'fas fa-user-group', t('tabs.pals'), 0)}
+        {app.forum.attribute('slowMailCanModerate') ? tab('reports', 'slow-mail.reports', 'fas fa-flag', t('tabs.reports'), 0) : null}
       </nav>
     );
   }
@@ -222,7 +239,7 @@ export default class SlowMailPage extends Page {
       <div className="SlowMailPage-index">
         {this.hero()}
         {this.tabs()}
-        {this.mode === 'outbox' ? this.outbox() : this.mode === 'pals' ? this.pals() : this.inbox()}
+        {this.mode === 'outbox' ? this.outbox() : this.mode === 'pals' ? this.pals() : this.mode === 'reports' ? this.reportList() : this.inbox()}
       </div>
     );
   }
@@ -437,6 +454,53 @@ export default class SlowMailPage extends Page {
     });
   }
 
+  // ---- reports (moderators) ----
+
+  reportList() {
+    const reports = this.reports || [];
+    if (!reports.length) return <p className="SlowMailPals-none">{t('reports.none')}</p>;
+
+    return (
+      <div className="SlowMailReports">
+        <p className="helpText">{t('reports.intro')}</p>
+        {reports.map((r) => (
+          <div className="SlowMailReportRow">
+            <div className="SlowMailReportRow-head">
+              <span>
+                {t('reports.line', {
+                  reporter: r.reporter?.displayName || t('envelope.someone'),
+                  sender: r.sender?.displayName || t('envelope.someone'),
+                  date: shortDate(r.reportedAt),
+                })}
+              </span>
+              {r.sender ? (
+                <Link className="Button Button--flat" href={userUrl(r.sender)}>
+                  {t('reports.sender_profile')}
+                </Link>
+              ) : null}
+              <Button
+                className="Button"
+                icon="fas fa-check"
+                onclick={() =>
+                  call('POST', '/reports/' + r.id + '/resolve').then(() => {
+                    this.reports = (this.reports || []).filter((x) => x.id !== r.id);
+                    m.redraw();
+                  })
+                }
+              >
+                {t('reports.resolve')}
+              </Button>
+            </div>
+            {r.reason ? <p className="SlowMailReportRow-reason">{r.reason}</p> : null}
+            <div className="SlowMailLetter-paper SlowMailReportRow-letter">
+              <div className="SlowMailLetter-body">{r.body ?? t('letter.unreadable')}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   // ---- one pen pal ----
 
   palView() {
@@ -491,6 +555,9 @@ export default class SlowMailPage extends Page {
             call('DELETE', '/letters/' + letter.id).then(() => m.route.set(app.route(letter.box === 'in' ? 'slow-mail' : 'slow-mail.outbox')))
           }
           onblock={() => letter.with && confirmBlock(letter.with, true).then((done) => done && m.route.set(app.route('slow-mail')))}
+          onreport={() =>
+            letter.with && app.modal.show(() => import('./ReportModal'), { letterId: letter.id, sender: letter.with, ondone: () => {} })
+          }
         />
       </div>
     );
