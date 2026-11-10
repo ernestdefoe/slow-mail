@@ -4,6 +4,7 @@ namespace ErnestDefoe\SlowMail;
 
 use ErnestDefoe\MemberMap\MemberQuery;
 use Flarum\Extension\ExtensionManager;
+use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
 
 /**
@@ -19,7 +20,7 @@ use Flarum\User\User;
  */
 class Places
 {
-    public function __construct(private readonly ExtensionManager $extensions)
+    public function __construct(private readonly ExtensionManager $extensions, private readonly SettingsRepositoryInterface $settings)
     {
     }
 
@@ -45,14 +46,19 @@ class Places
             ->toBase()
             ->get(['users.id as uid', 'member_map_locations.lat', 'member_map_locations.lng', 'member_map_locations.precision', 'member_map_locations.label', 'member_map_locations.country_code']);
 
+        $locale = (string) ($this->settings->get('default_locale') ?: 'en');
         $places = [];
         foreach ($rows as $row) {
+            $postmark = self::postmark((string) $row->label, (string) $row->precision, $row->country_code ? (string) $row->country_code : null, $locale);
+            if ($postmark === null) {
+                continue;
+            }
             $places[(int) $row->uid] = [
                 'lat' => (float) $row->lat,
                 'lng' => (float) $row->lng,
                 'precision' => (string) $row->precision,
                 'country' => $row->country_code ? strtolower((string) $row->country_code) : null,
-                'postmark' => self::postmark((string) $row->label, (string) $row->precision),
+                'postmark' => $postmark,
                 'region' => $row->precision === 'region',
             ];
         }
@@ -61,19 +67,32 @@ class Places
     }
 
     /**
-     * What a postmark may say: a region ("Bavaria, Germany") when that is what
-     * the member chose, else just the country. Never a city.
+     * What a postmark may say: the country, by its name from the country code
+     * (in the forum's language); at region precision, the region the member
+     * chose before it ("Bavaria, Germany"). Never a city, and never the label
+     * on its own: with no country code there is no postmark (and no place).
      */
-    public static function postmark(string $label, string $precision): string
+    public static function postmark(string $label, string $precision, ?string $countryCode, string $locale = 'en'): ?string
     {
-        $parts = array_values(array_filter(array_map('trim', explode(',', $label)), fn ($part) => $part !== ''));
-        if (! $parts) {
-            return '';
+        $code = strtoupper(trim((string) $countryCode));
+        if (strlen($code) !== 2) {
+            return null;
         }
 
-        $text = $precision === 'region' && count($parts) > 1 ? $parts[0].', '.end($parts) : end($parts);
+        $country = class_exists(\Locale::class) ? (string) \Locale::getDisplayRegion('-'.$code, $locale) : '';
+        if ($country === '' || $country === $code) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $label)), fn ($part) => $part !== ''));
+            $country = count($parts) > 1 ? (string) end($parts) : $code;
+        }
 
-        return mb_substr($text, 0, 100);
+        if ($precision === 'region') {
+            $region = trim(explode(',', $label)[0]);
+            if ($region !== '' && $region !== $country) {
+                return mb_substr($region.', '.$country, 0, 100);
+            }
+        }
+
+        return mb_substr($country, 0, 100);
     }
 
     /** Great-circle distance in km. */

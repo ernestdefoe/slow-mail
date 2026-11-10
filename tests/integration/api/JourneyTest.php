@@ -153,9 +153,12 @@ class JourneyTest extends TestCase
     #[Test]
     public function a_postmark_never_names_a_city()
     {
-        $this->assertSame('France', Places::postmark('Lyon, France', 'city'));
-        $this->assertSame('Bavaria, Germany', Places::postmark('Bavaria, Germany', 'region'));
-        $this->assertSame('Japan', Places::postmark('Japan', 'country'));
+        $this->assertSame('France', Places::postmark('Lyon, France', 'city', 'fr'));
+        $this->assertSame('France', Places::postmark('Lyon', 'city', 'fr'), 'a label that is only a city never becomes the postmark');
+        $this->assertNull(Places::postmark('Lyon', 'city', null));
+        $this->assertSame('Bavaria, Germany', Places::postmark('Bavaria, Germany', 'region', 'de'));
+        $this->assertSame('Germany', Places::postmark('Munich, Germany', 'city', 'de'));
+        $this->assertSame('Japan', Places::postmark('Japan', 'country', 'jp'));
 
         $letter = $this->write(2, 3)[1]['letter'];
         $this->assertSame('France', $letter['postmark']);
