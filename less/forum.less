@@ -1,0 +1,1265 @@
+// Slow Mail. Paper things (envelopes, letters, the writing paper) carry their
+// own paper and ink colours, light and dark; everything else takes the
+// theme's (--text-color, --muted-color, --control-bg, --primary-color).
+// Link colours are set under html:not(#x-hi) so a theme's link rule can't win.
+
+.SlowMailPage,
+.SlowMailWrite {
+  --sm-paper: #fbf6ea;
+  --sm-paper-edge: #ece1c8;
+  --sm-ink: #2c2a26;
+  --sm-ink-soft: #6b6457;
+  --sm-red: #c8443c;
+  --sm-blue: #2c5f9e;
+  --sm-postmark: #3d4f7a;
+  --sm-line: rgba(44, 95, 158, 0.13);
+  --sm-hand: "Segoe Print", "Bradley Hand", "Noteworthy", "Comic Sans MS", cursive;
+  --sm-serif: Georgia, "Times New Roman", serif;
+}
+
+html[data-theme^="dark"] {
+  .SlowMailPage,
+  .SlowMailWrite {
+    --sm-paper: #2f2b24;
+    --sm-paper-edge: #423b30;
+    --sm-ink: #f1e9d8;
+    --sm-ink-soft: #b9ae98;
+    --sm-red: #e0675e;
+    --sm-blue: #6d9be0;
+    --sm-postmark: #a9bbe3;
+    --sm-line: rgba(169, 187, 227, 0.12);
+  }
+}
+
+.airmail-edge() {
+  border: 7px solid transparent;
+  border-image: repeating-linear-gradient(135deg, var(--sm-red) 0 9px, var(--sm-paper) 9px 18px, var(--sm-blue) 18px 27px, var(--sm-paper) 27px 36px) 7;
+}
+
+// ---- stamps and postmarks ----
+
+.SlowMailStamp {
+  display: block;
+  width: 46px;
+  height: auto;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.25));
+  flex: none;
+}
+
+.SlowMailPostmark {
+  display: block;
+  width: 84px;
+  height: auto;
+  color: var(--sm-postmark);
+  opacity: 0.78;
+}
+
+.SlowMailCorner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex: none;
+
+  .SlowMailStamp {
+    transform: rotate(3deg);
+  }
+}
+
+.SlowMailCorner-postmark {
+  position: absolute;
+  right: 26px;
+  top: 14px;
+  z-index: 1;
+  transform: rotate(-11deg);
+  pointer-events: none;
+}
+
+// ---- the page ----
+
+.SlowMailPage {
+  color: var(--text-color);
+}
+
+.SlowMailPage-message {
+  color: var(--muted-color);
+  text-align: center;
+  padding: 30px 0;
+}
+
+html:not(#x-hi) .SlowMailPage .SlowMailPage-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--muted-color);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--text-color);
+  }
+}
+
+.SlowMailHero {
+  .airmail-edge();
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  background: var(--sm-paper);
+  background-clip: padding-box;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.SlowMailHero-text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+html:not(#x-hi) .SlowMailHero-title {
+  margin: 0 0 6px;
+  font-family: var(--sm-serif);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--sm-ink);
+}
+
+.SlowMailHero-intro {
+  margin: 0;
+  color: var(--sm-ink-soft);
+  line-height: 1.55;
+  max-width: 560px;
+}
+
+.SlowMailHero-stamps {
+  display: flex;
+  flex: none;
+
+  .SlowMailStamp {
+    width: 44px;
+    margin-left: -10px;
+
+    &:nth-child(1) {
+      transform: rotate(-9deg);
+    }
+
+    &:nth-child(2) {
+      transform: rotate(4deg) translateY(-6px);
+    }
+
+    &:nth-child(3) {
+      transform: rotate(12deg);
+    }
+  }
+}
+
+.SlowMailHero-write {
+  flex: none;
+}
+
+.SlowMailTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--control-bg);
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+html:not(#x-hi) .SlowMailTabs-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 9px 14px;
+  color: var(--muted-color);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+
+  &:hover {
+    color: var(--text-color);
+  }
+
+  &.is-active {
+    color: var(--text-color);
+    border-bottom-color: var(--primary-color);
+  }
+}
+
+.SlowMailTabs-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--primary-color);
+  color: var(--body-bg);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+// ---- inbox: envelopes ----
+
+.SlowMailInbox {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(~"min(280px, 100%)", 1fr));
+  gap: 18px;
+}
+
+html:not(#x-hi) .SlowMailEnvelope {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  aspect-ratio: 1.62;
+  padding: 16px 16px 16px 18px;
+  background: var(--sm-paper);
+  color: var(--sm-ink);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 14px -8px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-3px) rotate(-0.6deg);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 14px 22px -12px rgba(0, 0, 0, 0.35);
+    color: var(--sm-ink);
+  }
+}
+
+.SlowMailEnvelope-edge {
+  .airmail-edge();
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.SlowMailEnvelope .SlowMailCorner {
+  align-self: flex-end;
+}
+
+.SlowMailEnvelope-address {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.SlowMailEnvelope-label,
+.SlowMailSent-label,
+.SlowMailLetter-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.SlowMailEnvelope-label {
+  color: var(--sm-ink-soft);
+}
+
+.SlowMailEnvelope-name {
+  font-family: var(--sm-hand);
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--sm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.SlowMailEnvelope-meta {
+  font-size: 12px;
+  color: var(--sm-ink-soft);
+}
+
+.SlowMailEnvelope-new {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e36a5f, #a8322b 70%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 0 0 3px rgba(255, 255, 255, 0.12);
+  color: #fff6ea;
+  font-family: var(--sm-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transform: rotate(-12deg);
+}
+
+.SlowMailEnvelope-reply {
+  position: absolute;
+  left: 18px;
+  bottom: 70px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sm-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.SlowMailEnvelope.is-unread .SlowMailEnvelope-reply {
+  bottom: auto;
+  top: 66px;
+}
+
+// ---- outbox: journeys ----
+
+.SlowMailOutbox,
+.SlowMailThread {
+  display: grid;
+  gap: 14px;
+}
+
+.SlowMailSent {
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--body-bg);
+  border: 1px solid var(--control-bg);
+  border-radius: 10px;
+  color: var(--text-color);
+}
+
+.SlowMailSent-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.SlowMailSent-avatar {
+  --size: 40px;
+  flex: none;
+}
+
+.SlowMailSent-to {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.SlowMailSent-label,
+.SlowMailSent-date {
+  color: var(--muted-color);
+}
+
+.SlowMailSent-date {
+  font-size: 12px;
+}
+
+html:not(#x-hi) .SlowMailSent-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.SlowMailSent-stamp {
+  width: 36px;
+  transform: rotate(4deg);
+}
+
+.SlowMailSent-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-color);
+
+  strong {
+    color: var(--text-color);
+    margin-right: 8px;
+  }
+}
+
+.SlowMailSent-eta {
+  color: var(--muted-color);
+}
+
+.SlowMailSent.is-returned .SlowMailSent-status strong {
+  color: var(--sm-red);
+}
+
+.SlowMailJourney {
+  position: relative;
+  margin: 10px 0 8px;
+  padding-bottom: 20px;
+}
+
+.SlowMailJourney-map {
+  display: block;
+  width: 100%;
+  height: 48px;
+  overflow: visible;
+}
+
+.SlowMailJourney-route,
+.SlowMailJourney-done {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.SlowMailJourney-route {
+  stroke: var(--muted-color);
+  stroke-width: 1.5;
+  stroke-dasharray: 0.012 0.012;
+  opacity: 0.6;
+}
+
+.SlowMailJourney-done {
+  stroke: var(--primary-color);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.SlowMailJourney-end {
+  fill: var(--body-bg);
+  stroke: var(--primary-color);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.SlowMailJourney-plane {
+  position: absolute;
+  width: 24px;
+  height: 17px;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--body-bg);
+    stroke: var(--primary-color);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+}
+
+.SlowMailJourney.is-transit .SlowMailJourney-plane {
+  animation: SlowMailBob 2.6s ease-in-out infinite;
+}
+
+.SlowMailJourney.is-returned .SlowMailJourney-done {
+  stroke: var(--sm-red);
+}
+
+.SlowMailJourney-ends {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted-color);
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span:last-child {
+    text-align: right;
+  }
+}
+
+@keyframes SlowMailBob {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -3px;
+  }
+}
+
+// ---- empty states ----
+
+.SlowMailEmpty {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--muted-color);
+
+  .Button {
+    margin-top: 6px;
+  }
+}
+
+.SlowMailEmpty-stamp {
+  width: 64px;
+  margin: 0 auto 14px;
+  transform: rotate(-6deg);
+}
+
+.SlowMailEmpty-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.SlowMailEmpty-hint {
+  margin: 0 0 12px;
+  color: var(--muted-color);
+}
+
+// ---- pen pals ----
+
+.SlowMailPals-list {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.SlowMailPal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--control-bg);
+}
+
+html:not(#x-hi) .SlowMailPal-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.SlowMailPal-avatar {
+  --size: 40px;
+  flex: none;
+}
+
+.SlowMailPal-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.SlowMailPal-name {
+  font-weight: 700;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.SlowMailPal-meta {
+  font-size: 12px;
+  color: var(--muted-color);
+}
+
+.SlowMailPals-none,
+.SlowMailSeek-none,
+.SlowMailSeek-intro {
+  color: var(--muted-color);
+}
+
+.SlowMailSeek {
+  margin: 8px 0 24px;
+  padding: 18px;
+  border: 1px dashed var(--muted-color);
+  border-radius: 12px;
+  color: var(--text-color);
+}
+
+html:not(#x-hi) .SlowMailSeek-title {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.SlowMailSeek-mine {
+  color: var(--text-color);
+
+  p {
+    margin: 0 0 6px;
+  }
+
+  .Button--link {
+    padding-left: 0;
+    margin-right: 14px;
+  }
+}
+
+.SlowMailChip {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 9px;
+  border-radius: 12px;
+  background: var(--control-bg);
+  color: var(--control-color);
+  font-size: 12px;
+  font-weight: 600;
+
+  &.is-shared {
+    background: var(--primary-color);
+    color: var(--body-bg);
+  }
+}
+
+.SlowMailSeek .SlowMailChip {
+  background: var(--body-bg);
+  border: 1px solid var(--control-bg);
+
+  &.is-shared {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+}
+
+.SlowMailMatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(~"min(220px, 100%)", 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.SlowMailMatch {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--control-bg);
+}
+
+html:not(#x-hi) .SlowMailMatch-who {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  align-items: center;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.SlowMailMatch-avatar {
+  --size: 40px;
+  grid-row: span 2;
+}
+
+.SlowMailMatch-name {
+  font-weight: 700;
+  color: var(--text-color);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.SlowMailMatch-place {
+  font-size: 12px;
+  color: var(--muted-color);
+}
+
+.SlowMailMatch-tags {
+  flex: 1;
+}
+
+.SlowMailAccept {
+  max-width: 420px;
+
+  label {
+    color: var(--text-color);
+  }
+}
+
+.SlowMailAvatar {
+  display: inline-grid;
+  place-items: center;
+  background: var(--primary-color);
+  color: var(--body-bg);
+  font-weight: 700;
+}
+
+// ---- one pen pal ----
+
+.SlowMailPalPage-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.SlowMailPalPage-avatar {
+  --size: 56px;
+  flex: none;
+}
+
+.SlowMailPalPage-who {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+html:not(#x-hi) .SlowMailPalPage-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.SlowMailPalPage-meta {
+  color: var(--muted-color);
+}
+
+.SlowMailThread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.SlowMailThread-item {
+  max-width: 560px;
+  min-width: 0;
+
+  &.is-out {
+    justify-self: end;
+    width: 100%;
+  }
+
+  &.is-in {
+    width: 100%;
+  }
+}
+
+// ---- a letter ----
+
+.SlowMailLetter {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.SlowMailLetter-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.SlowMailLetter-avatar {
+  --size: 48px;
+  flex: none;
+}
+
+.SlowMailLetter-who {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.SlowMailLetter-label,
+.SlowMailLetter-meta {
+  color: var(--muted-color);
+}
+
+html:not(#x-hi) .SlowMailLetter-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.SlowMailLetter-meta {
+  font-size: 13px;
+}
+
+.SlowMailLetter-head .SlowMailCorner {
+  margin-left: auto;
+}
+
+.SlowMailLetter-paper {
+  position: relative;
+  padding: 30px 34px 34px 58px;
+  background-color: var(--sm-paper);
+  background-image: linear-gradient(90deg, transparent 40px, rgba(200, 68, 60, 0.35) 40px, rgba(200, 68, 60, 0.35) 41.5px, transparent 41.5px),
+    repeating-linear-gradient(transparent 0 31px, var(--sm-line) 31px 32px);
+  background-position: 0 0, 0 22px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 12px 28px -14px rgba(0, 0, 0, 0.35);
+  color: var(--sm-ink);
+  animation: SlowMailUnfold 0.5s ease-out;
+}
+
+.SlowMailLetter-body {
+  font-family: var(--sm-serif);
+  font-size: 17px;
+  line-height: 32px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--sm-ink);
+}
+
+.SlowMailLetter-unreadable {
+  margin: 0;
+  color: var(--sm-ink-soft);
+  font-style: italic;
+}
+
+.SlowMailLetter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+html:not(#x-hi) .SlowMailLetter-actions .Button--flat {
+  color: var(--muted-color);
+}
+
+@keyframes SlowMailUnfold {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scaleY(0.96);
+  }
+}
+
+// ---- the envelope opening (first read) ----
+
+.SlowMailOpening {
+  display: grid;
+  place-items: center;
+  height: 360px;
+  cursor: pointer;
+  perspective: 900px;
+}
+
+.SlowMailOpening-envelope {
+  position: relative;
+  width: ~"min(320px, 86vw)";
+  aspect-ratio: 1.6;
+  margin-top: 80px;
+}
+
+.SlowMailOpening-back,
+.SlowMailOpening-front,
+.SlowMailOpening-flap {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+}
+
+.SlowMailOpening-back {
+  background: var(--sm-paper-edge);
+  box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.45);
+}
+
+.SlowMailOpening-sheet {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 6%;
+  bottom: 6%;
+  z-index: 1;
+  padding: 18px 16px;
+  background: var(--sm-paper);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  span {
+    display: block;
+    height: 3px;
+    margin-bottom: 12px;
+    border-radius: 2px;
+    background: var(--sm-line);
+
+    &:nth-child(2) {
+      width: 85%;
+    }
+
+    &:nth-child(4) {
+      width: 60%;
+    }
+  }
+}
+
+.SlowMailOpening-front {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--sm-paper);
+  clip-path: polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%);
+
+  .SlowMailCorner {
+    align-self: flex-end;
+    margin-top: 40%;
+    transform: scale(0.8);
+    transform-origin: right bottom;
+  }
+}
+
+.SlowMailOpening-name {
+  font-family: var(--sm-hand);
+  font-size: 20px;
+  color: var(--sm-ink);
+}
+
+.SlowMailOpening-flap {
+  z-index: 3;
+  bottom: auto;
+  height: 58%;
+  background: var(--sm-paper-edge);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top center;
+  transition: transform 0.7s ease-in-out, z-index 0s 0.35s;
+}
+
+.SlowMailOpening-seal {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e36a5f, #a8322b 70%);
+  transition: opacity 0.3s;
+}
+
+.SlowMailOpening.is-flap,
+.SlowMailOpening.is-out {
+  .SlowMailOpening-flap {
+    transform: rotateX(180deg);
+    z-index: 0;
+  }
+
+  .SlowMailOpening-seal {
+    opacity: 0;
+  }
+}
+
+.SlowMailOpening.is-out .SlowMailOpening-sheet {
+  transform: translateY(-62%);
+}
+
+// ---- the writing desk ----
+
+.SlowMailWrite {
+  .Modal-body {
+    color: var(--text-color);
+  }
+}
+
+.SlowMailWrite-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .Avatar {
+    --size: 32px;
+  }
+}
+
+.SlowMailWrite-personName {
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.SlowMailWrite-results {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--control-bg);
+}
+
+.SlowMailWrite-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--control-color);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  .Avatar {
+    --size: 28px;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--body-bg);
+  }
+}
+
+.SlowMailWrite-stamps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 6px;
+}
+
+.SlowMailWrite-stamp {
+  display: grid;
+  place-items: center;
+  padding: 6px 2px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.15s;
+
+  .SlowMailStamp {
+    width: 40px;
+  }
+
+  &:hover {
+    transform: rotate(-3deg) scale(1.05);
+  }
+
+  &.is-chosen {
+    border-color: var(--primary-color);
+    background: var(--control-bg);
+    transform: rotate(-3deg);
+  }
+}
+
+textarea.FormControl.SlowMailWrite-paper {
+  min-height: 220px;
+  padding: 10px 14px;
+  background-color: var(--sm-paper);
+  background-image: repeating-linear-gradient(transparent 0 27px, var(--sm-line) 27px 28px);
+  background-attachment: local;
+  background-position: 0 9px;
+  color: var(--sm-ink);
+  font-family: var(--sm-serif);
+  font-size: 16px;
+  line-height: 28px;
+  resize: vertical;
+
+  &::placeholder {
+    color: var(--sm-ink-soft);
+  }
+
+  &:focus {
+    background-color: var(--sm-paper);
+  }
+}
+
+.SlowMailWrite-count {
+  text-align: right;
+}
+
+.SlowMailWrite-journey {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--control-color);
+  font-size: 13px;
+  line-height: 1.5;
+
+  &.is-refused {
+    color: var(--sm-red);
+  }
+}
+
+.SlowMailWrite-when {
+  font-weight: 700;
+}
+
+.SlowMailWrite-route,
+.SlowMailWrite-limit {
+  display: block;
+  color: var(--muted-color);
+}
+
+.SlowMailWrite-limit {
+  color: var(--sm-red);
+}
+
+.SlowMailWrite-done {
+  text-align: center;
+  color: var(--text-color);
+}
+
+.SlowMailWrite-doneText {
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+
+.SlowMailWrite-fold {
+  position: relative;
+  height: 130px;
+  margin-bottom: 8px;
+}
+
+.SlowMailWrite-foldSheet {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 90px;
+  height: 110px;
+  margin-left: -45px;
+  background: var(--sm-paper);
+  background-image: repeating-linear-gradient(transparent 0 13px, var(--sm-line) 13px 14px);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: SlowMailFold 0.9s ease-in forwards;
+}
+
+.SlowMailWrite-foldEnvelope {
+  .airmail-edge();
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  width: 140px;
+  height: 86px;
+  margin-left: -70px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px;
+  background: var(--sm-paper);
+  background-clip: padding-box;
+  border-radius: 4px;
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  animation: SlowMailEnvelopeIn 0.4s 0.7s ease-out forwards, SlowMailFlyAway 1.1s 1.5s ease-in forwards;
+
+  .SlowMailStamp {
+    width: 28px;
+  }
+}
+
+@keyframes SlowMailFold {
+  60% {
+    transform: scaleY(0.4) translateY(40px);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.2) translateY(70px);
+    opacity: 0;
+  }
+}
+
+@keyframes SlowMailEnvelopeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes SlowMailFlyAway {
+  to {
+    transform: translate(180px, -120px) rotate(18deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .SlowMailJourney.is-transit .SlowMailJourney-plane,
+  .SlowMailLetter-paper,
+  .SlowMailWrite-foldSheet,
+  .SlowMailWrite-foldEnvelope {
+    animation: none;
+  }
+
+  .SlowMailWrite-foldSheet {
+    display: none;
+  }
+
+  .SlowMailWrite-foldEnvelope {
+    opacity: 1;
+  }
+
+  html:not(#x-hi) .SlowMailEnvelope {
+    transition: none;
+  }
+}
+
+// ---- phones ----
+
+@media @phone {
+  .SlowMailHero {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  html:not(#x-hi) .SlowMailHero-title {
+    font-size: 22px;
+  }
+
+  .SlowMailHero-stamps {
+    position: absolute;
+    right: 14px;
+    top: -10px;
+
+    .SlowMailStamp {
+      width: 32px;
+    }
+  }
+
+  .SlowMailHero-text {
+    padding-right: 60px;
+  }
+
+  .SlowMailHero-write {
+    width: 100%;
+  }
+
+  .SlowMailLetter-paper {
+    padding: 22px 16px 24px 34px;
+    background-image: linear-gradient(90deg, transparent 22px, rgba(200, 68, 60, 0.35) 22px, rgba(200, 68, 60, 0.35) 23.5px, transparent 23.5px),
+      repeating-linear-gradient(transparent 0 31px, var(--sm-line) 31px 32px);
+  }
+
+  .SlowMailLetter-body {
+    font-size: 16px;
+  }
+
+  .SlowMailLetter-head {
+    flex-wrap: wrap;
+
+    .SlowMailCorner {
+      display: none;
+    }
+  }
+
+  .SlowMailSent-status {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
