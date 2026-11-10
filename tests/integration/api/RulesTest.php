@@ -96,6 +96,18 @@ class RulesTest extends TestCase
     }
 
     #[Test]
+    public function an_old_pen_pal_who_never_wrote_back_is_not_a_new_person_today()
+    {
+        // Lena wrote to Theo two days ago; he never answered. Writing to him again today isn't a "new person".
+        [, $old] = $this->write(2, 3);
+        $this->database()->table('slow_mail_letters')->where('id', $old['letter']['id'])->update(['sent_at' => Carbon::now()->subDays(2), 'delivered_at' => Carbon::now()->subDay()]);
+
+        $this->assertSame(201, $this->write(2, 3)[0], 'Theo is not new');
+        $this->assertSame(201, $this->write(2, 4)[0], 'so Mira can be today\'s one new person');
+        $this->assertSame('slow_mail_new_pals_limit', $this->write(2, 1)[1]['errors'][0]['code'] ?? null, 'a second new person is');
+    }
+
+    #[Test]
     public function rate_limits_hold()
     {
         $this->assertSame(201, $this->write(2, 3)[0]);

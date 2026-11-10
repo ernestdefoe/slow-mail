@@ -122,11 +122,19 @@ class Rules
 
         // Letters to someone new (never written to, never had a letter from) are the spam vector: fewer of those.
         if (! $this->pals($sender->id, $recipient->id) && ! $sent->clone()->where('recipient_id', $recipient->id)->exists()) {
-            $cold = $today->clone()->whereNotExists(fn ($q) => $q->selectRaw('1')->from('slow_mail_letters as earlier')
-                ->whereColumn('earlier.recipient_id', 'slow_mail_letters.sender_id')
-                ->whereColumn('earlier.sender_id', 'slow_mail_letters.recipient_id')
-                ->whereNotNull('earlier.delivered_at'))
-                ->distinct()->count('recipient_id');
+            // Today's first-ever letters to someone: an old pen pal who never wrote back doesn't count again,
+            // and neither does a first letter to someone who had written to you.
+            $cold = $today->clone()
+                ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('slow_mail_letters as earlier')
+                    ->whereColumn('earlier.sender_id', 'slow_mail_letters.sender_id')
+                    ->whereColumn('earlier.recipient_id', 'slow_mail_letters.recipient_id')
+                    ->whereColumn('earlier.id', '<', 'slow_mail_letters.id'))
+                ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('slow_mail_letters as theirs')
+                    ->whereColumn('theirs.sender_id', 'slow_mail_letters.recipient_id')
+                    ->whereColumn('theirs.recipient_id', 'slow_mail_letters.sender_id')
+                    ->whereNotNull('theirs.delivered_at')
+                    ->whereColumn('theirs.delivered_at', '<', 'slow_mail_letters.sent_at'))
+                ->count();
             if ($cold >= Settings::int($this->settings->get(Settings::NEW_PALS), Settings::DEFAULT_NEW_PALS, 1, 100)) {
                 return [429, 'slow_mail_new_pals_limit'];
             }
