@@ -72,6 +72,8 @@ class GdprTest extends TestCase
         $byModerator = $this->export(3, 1);
         $this->assertStringContainsString('"received"', $byModerator);
         $this->assertStringNotContainsString(self::MARKER, $byModerator);
+        $this->assertStringNotContainsString('with_user_id', $byModerator, 'nor who they write to');
+        $this->assertStringNotContainsString('lighthouse', $byModerator);
 
         $this->assertSame(2, substr_count($this->export(2, 2), self::MARKER), 'the writer has both');
     }

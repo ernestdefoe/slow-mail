@@ -62,6 +62,7 @@ return [
         ->get('/slow-mail/quote', 'slow-mail.quote', Api\QuoteController::class)
         ->post('/slow-mail/letters', 'slow-mail.send', Api\SendController::class)
         ->get('/slow-mail/letters/{id:\d+}', 'slow-mail.show', Api\LetterController::class)
+        ->post('/slow-mail/letters/{id:\d+}/read', 'slow-mail.read', Api\LetterController::class)
         ->delete('/slow-mail/letters/{id:\d+}', 'slow-mail.hide', Api\LetterController::class)
         ->get('/slow-mail/pals/{id:\d+}', 'slow-mail.correspondence', Api\CorrespondenceController::class)
         ->post('/slow-mail/blocks', 'slow-mail.block', Api\BlockController::class)

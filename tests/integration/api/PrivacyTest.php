@@ -86,8 +86,14 @@ class PrivacyTest extends TestCase
         [$status, $letter] = $this->call('GET', '/api/slow-mail/letters/'.$id, 3);
         $this->assertSame(200, $status);
         $this->assertStringContainsString(self::MARKER, $letter['letter']['body']);
-        $this->assertTrue($letter['letter']['firstRead']);
-        $this->assertFalse($this->call('GET', '/api/slow-mail/letters/'.$id, 3)[1]['letter']['firstRead']);
+        $this->assertFalse($letter['letter']['read']);
+        // Reading is a POST (a GET that changed state could be fired by an <img>), and only the recipient's counts.
+        $this->assertFalse($this->call('GET', '/api/slow-mail/letters/'.$id, 3)[1]['letter']['read']);
+        $this->assertSame(204, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 2)[0]);
+        $this->assertNull($this->database()->table('slow_mail_letters')->where('id', $id)->value('read_at'));
+        $this->assertSame(204, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 3)[0]);
+        $this->assertTrue($this->call('GET', '/api/slow-mail/letters/'.$id, 3)[1]['letter']['read']);
+        $this->assertSame(404, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 4)[0]);
 
         // Admin, another member, guest: still nothing.
         $this->assertNowhere($id, [1, 4, null]);

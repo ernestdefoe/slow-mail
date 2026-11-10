@@ -96,7 +96,9 @@ export default class SlowMailPage extends Page {
     const extra =
       this.mode === 'letter'
         ? call<{ letter: Letter }>('GET', '/letters/' + this.id, undefined, true).then((r) => {
-            this.letter = r.letter;
+            // The envelope opens the first time its recipient reads it; that read is told to the server by POST.
+            this.letter = { ...r.letter, firstRead: r.letter.box === 'in' && !r.letter.read };
+            if (this.letter.firstRead) call('POST', '/letters/' + this.id + '/read', undefined, true).catch(() => {});
           })
         : this.mode === 'pal'
           ? call<any>('GET', '/pals/' + this.id, undefined, true).then((r) => {
@@ -142,9 +144,9 @@ export default class SlowMailPage extends Page {
           <p className="SlowMailHero-intro">{t('page.intro')}</p>
         </div>
         <div className="SlowMailHero-stamps" aria-hidden="true">
-          <Stamp name="balloon" />
-          <Stamp name="whale" />
-          <Stamp name="blossom" />
+          {Stamp({ name: 'balloon' })}
+          {Stamp({ name: 'whale' })}
+          {Stamp({ name: 'blossom' })}
         </div>
         {data?.can.send ? (
           <Button className="Button Button--primary SlowMailHero-write" icon="fas fa-pen-nib" onclick={() => this.write()}>
@@ -230,31 +232,19 @@ export default class SlowMailPage extends Page {
   inbox() {
     const letters = this.data!.inbox;
     if (!letters.length) return this.empty('owl', t('inbox.empty'), t('inbox.empty_hint'));
-    return (
-      <div className="SlowMailInbox">
-        {letters.map((letter) => (
-          <InboxEnvelope letter={letter} />
-        ))}
-      </div>
-    );
+    return <div className="SlowMailInbox">{letters.map((letter) => InboxEnvelope({ letter }))}</div>;
   }
 
   outbox() {
     const letters = this.data!.outbox;
     if (!letters.length) return this.empty('balloon', t('outbox.empty'), t('outbox.empty_hint'));
-    return (
-      <div className="SlowMailOutbox">
-        {letters.map((letter) => (
-          <OutboxCard letter={letter} />
-        ))}
-      </div>
-    );
+    return <div className="SlowMailOutbox">{letters.map((letter) => OutboxCard({ letter }))}</div>;
   }
 
   empty(stamp: string, title: Mithril.Children, hint: Mithril.Children) {
     return (
       <div className="SlowMailEmpty">
-        <Stamp name={stamp} className="SlowMailEmpty-stamp" />
+        {Stamp({ name: stamp, className: 'SlowMailEmpty-stamp' })}
         <p className="SlowMailEmpty-title">{title}</p>
         <p className="SlowMailEmpty-hint">{hint}</p>
         {this.data?.can.send ? (
@@ -481,9 +471,7 @@ export default class SlowMailPage extends Page {
         </div>
         <ol className="SlowMailThread">
           {pal.letters.map((letter) => (
-            <li className={'SlowMailThread-item is-' + letter.box}>
-              {letter.box === 'in' ? <InboxEnvelope letter={letter} /> : <OutboxCard letter={letter} />}
-            </li>
+            <li className={'SlowMailThread-item is-' + letter.box}>{letter.box === 'in' ? InboxEnvelope({ letter }) : OutboxCard({ letter })}</li>
           ))}
         </ol>
       </div>

@@ -16,7 +16,9 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 /**
  * GET    /api/slow-mail/letters/{id}: one letter, words included, for its
- *        sender, or its recipient once it has arrived (the first read marks it).
+ *        sender, or its recipient once it has arrived.
+ * POST   /api/slow-mail/letters/{id}/read: the recipient opened it. (Not on the
+ *        GET: a GET that changes something can be fired by an <img> anywhere.)
  * DELETE /api/slow-mail/letters/{id}: put it away, for you only. The row goes
  *        when both have put it away. A letter still on its way can't be.
  *
@@ -54,12 +56,14 @@ class LetterController implements RequestHandlerInterface
             return new EmptyResponse(204);
         }
 
-        if (! $mine && ! $letter->read_at) {
-            $letter->read_at = Carbon::now();
-            Letter::query()->whereKey($letter->id)->whereNull('read_at')->update(['read_at' => $letter->read_at]);
-            $firstRead = true;
+        if ($request->getMethod() === 'POST') {
+            if (! $mine) {
+                Letter::query()->whereKey($letter->id)->whereNull('read_at')->update(['read_at' => Carbon::now()]);
+            }
+
+            return new EmptyResponse(204);
         }
 
-        return new JsonResponse(['letter' => $this->present->letter($letter, $actor) + ['firstRead' => $firstRead ?? false]]);
+        return new JsonResponse(['letter' => $this->present->letter($letter, $actor)]);
     }
 }
