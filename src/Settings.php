@@ -16,13 +16,6 @@ final class Settings
     public const DAILY = 'slow-mail.daily_limit';
     public const NEW_PALS = 'slow-mail.new_pals_daily';
 
-    public const DEFAULT_KM_PER_DAY = 2000;
-    public const DEFAULT_MIN_HOURS = 12;
-    public const DEFAULT_MAX_HOURS = 168;
-    public const DEFAULT_DEFAULT_HOURS = 24;
-    public const DEFAULT_DAILY = 10;
-    public const DEFAULT_NEW_PALS = 3;
-
     /** Hard limits, whatever the settings say. */
     public const MAX_LENGTH = 6000;
     public const IN_TRANSIT = 20;
@@ -35,10 +28,9 @@ final class Settings
     public const ACCEPT_PALS = 'pals';
     public const ACCEPT_NOBODY = 'nobody';
 
-    public static function int(mixed $value, int $default, int $min, int $max): int
+    /** A numeric setting kept inside its range (its default is registered once, in extend.php). */
+    public static function clamp(mixed $value, int $min, int $max): int
     {
-        $value = is_numeric($value) ? (int) $value : $default;
-
-        return max($min, min($max, $value));
+        return max($min, min($max, (int) $value));
     }
 }

@@ -3,90 +3,20 @@ import { extend } from 'flarum/common/extend';
 import type ItemList from 'flarum/common/utils/ItemList';
 import Button from 'flarum/common/components/Button';
 import LinkButton from 'flarum/common/components/LinkButton';
-import Notification from 'flarum/forum/components/Notification';
 import UserControls from 'flarum/forum/utils/UserControls';
-import username from 'flarum/common/helpers/username';
-import type Mithril from 'mithril';
+import type User from 'flarum/common/models/User';
+import { t } from './t';
 
 /*
- * forum.js is loaded on every page, so it only wires things up: the routes,
- * the sidebar link, "Write a letter" on profiles, the setting and the two
- * notifications. The post office and the writing desk are chunks fetched
- * when someone opens them.
+ * forum.js is loaded on every page, so it only wires things up. The models,
+ * routes and notifications are declared in extend.ts; here are the sidebar
+ * link, "Write a letter" on profiles and the settings. The post office and
+ * the writing desk are chunks fetched when someone opens them.
  */
 
-declare const m: Mithril.Static;
-
-const t = (key: string, params: Record<string, any> = {}) => app.translator.trans(`ernestdefoe-slow-mail.forum.${key}`, params);
-
-class ArrivedNotification extends Notification {
-  icon() {
-    return 'fas fa-envelope';
-  }
-
-  href() {
-    return app.route('slow-mail.letter', { id: (this.attrs.notification as any).content()?.letter });
-  }
-
-  content(): Mithril.Children {
-    return t('notification.arrived', { username: username(this.attrs.notification.fromUser()) });
-  }
-
-  excerpt(): Mithril.Children {
-    return null;
-  }
-}
-
-class DeliveredNotification extends Notification {
-  icon() {
-    return 'fas fa-envelope-circle-check';
-  }
-
-  href() {
-    return app.route('slow-mail.letter', { id: (this.attrs.notification as any).content()?.letter });
-  }
-
-  content(): Mithril.Children {
-    return t('notification.delivered', { username: username(this.attrs.notification.fromUser()) });
-  }
-
-  excerpt(): Mithril.Children {
-    return null;
-  }
-}
-
-class ReportedNotification extends Notification {
-  icon() {
-    return 'fas fa-flag';
-  }
-
-  href() {
-    return app.route('slow-mail.reports');
-  }
-
-  content(): Mithril.Children {
-    return t('notification.reported', { username: username(this.attrs.notification.fromUser()) });
-  }
-
-  excerpt(): Mithril.Children {
-    return null;
-  }
-}
+export { default as extend } from './extend';
 
 app.initializers.add('ernestdefoe/slow-mail', () => {
-  const page = () => import('./components/SlowMailPage').then(async (module) => (await module.loadCore(), module));
-
-  app.routes['slow-mail'] = { path: '/slow-mail', component: page };
-  app.routes['slow-mail.outbox'] = { path: '/slow-mail/outbox', component: page };
-  app.routes['slow-mail.pals'] = { path: '/slow-mail/pals', component: page };
-  app.routes['slow-mail.pal'] = { path: '/slow-mail/pals/:id', component: page };
-  app.routes['slow-mail.letter'] = { path: '/slow-mail/letters/:id', component: page };
-  app.routes['slow-mail.reports'] = { path: '/slow-mail/reports', component: page };
-
-  app.notificationComponents.slowMailArrived = ArrivedNotification;
-  app.notificationComponents.slowMailDelivered = DeliveredNotification;
-  app.notificationComponents.slowMailReported = ReportedNotification;
-
   // String form: IndexSidebar lives in a lazy chunk, and extending an imported copy patches one core never renders.
   extend('flarum/forum/components/IndexSidebar', 'navItems', function (items: ItemList<any>) {
     if (!app.session.user || !app.forum.attribute('slowMailCanSend') || !app.forum.attribute('slowMailNav')) return;
@@ -96,7 +26,8 @@ app.initializers.add('ernestdefoe/slow-mail', () => {
     items.add('slow-mail', LinkButton.component({ href, icon: 'fas fa-envelope', active }, t('nav')), 77);
   });
 
-  extend(UserControls, 'userControls', function (items: ItemList<any>, user: any) {
+  extend(UserControls, 'userControls', function (items: ItemList<any>, ...args: unknown[]) {
+    const user = args[0] as User;
     const me = app.session.user;
     if (!me || user === me || !app.forum.attribute('slowMailCanSend')) return;
 

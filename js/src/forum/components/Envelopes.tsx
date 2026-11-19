@@ -4,8 +4,6 @@ import type Mithril from 'mithril';
 import { about, arrivalDate, countryName, progress, shortDate, t, type Envelope } from '../api';
 import { Postmark, Stamp } from '../art';
 
-declare const m: Mithril.Static;
-
 const forumTitle = () => app.forum.attribute<string>('title');
 
 /** Core's avatar markup (picture, or the first letter), from the plain person our API sends. */

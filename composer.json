@@ -54,14 +54,17 @@
             },
             "optional-dependencies": [
                 "ernestdefoe/member-map",
+                "ernestdefoe/parley",
                 "flarum/gdpr",
                 "flarum/messages",
+                "flarum/suspend",
                 "fof/byobu"
             ]
         }
     },
     "require-dev": {
         "ernestdefoe/member-map": "^1.0",
+        "ernestdefoe/parley": "^1.11",
         "flarum/gdpr": "^2.0",
         "flarum/phpstan": "^2.0",
         "flarum/suspend": "^2.0",
@@ -85,5 +88,13 @@
         "sort-packages": true
     },
     "minimum-stability": "beta",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "suggest": {
+        "ernestdefoe/member-map": "Travel times from the distance between members, and postmarks.",
+        "ernestdefoe/parley": "Its blocks and \"who can message me\" apply to letters too.",
+        "flarum/gdpr": "Letters in data exports; erasure removes them.",
+        "flarum/messages": "Members it rules out as someone to message can't be written to.",
+        "flarum/suspend": "Suspended members are off the lists, and their letters on the way are returned.",
+        "fof/byobu": "A member who blocks private discussions takes no letters either."
+    }
 }

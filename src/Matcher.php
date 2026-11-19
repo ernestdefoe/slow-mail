@@ -10,7 +10,7 @@ use Flarum\User\User;
  * Only for members who opted in themselves (no browsing the list without
  * joining it). Candidates are filtered in SQL (Members::reachable), then by
  * blocks, letter preferences and both sides' region wishes; places come from
- * Member Map only as far as the viewer may see them (Places::seenBy), and a
+ * Member Map only as far as the viewer may see them (PlaceSource::seenBy), and a
  * member without a visible place only matches "anywhere". Scored by shared
  * interests, then by who opted in or updated most recently.
  */
@@ -21,7 +21,7 @@ class Matcher
 
     public function __construct(
         private readonly Members $members,
-        private readonly Places $places,
+        private readonly PlaceSource $places,
         private readonly Present $present,
     ) {
     }
@@ -43,6 +43,7 @@ class Matcher
         $blocked = $this->members->blockedWith($me);
         $pals = Letter::query()->toBase()->whereNotNull('delivered_at')
             ->where(fn ($q) => $q->where('sender_id', $me)->orWhere('recipient_id', $me))
+            // The other member of each letter, whichever way it went: one column for pluck() below.
             ->selectRaw('case when sender_id = ? then recipient_id else sender_id end as pal', [$me])
             ->pluck('pal')->map(fn ($id) => (int) $id)->flip()->all();
 
@@ -58,7 +59,7 @@ class Matcher
                 continue;
             }
             // Pen pals only (or nobody): a stranger's letter wouldn't be taken, so don't suggest one.
-            if ((string) $user->getPreference(Settings::ACCEPT, Settings::ACCEPT_EVERYONE) !== Settings::ACCEPT_EVERYONE) {
+            if ((string) $user->getPreference(Settings::ACCEPT) !== Settings::ACCEPT_EVERYONE) {
                 continue;
             }
 

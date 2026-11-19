@@ -4,6 +4,7 @@ namespace ErnestDefoe\SlowMail;
 
 use Carbon\Carbon;
 use Flarum\Database\AbstractModel;
+use Flarum\Database\ScopeVisibilityTrait;
 use Flarum\User\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -35,6 +36,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Letter extends AbstractModel
 {
+    use ScopeVisibilityTrait;
+
+    /** The words as written, while a new letter is checked and encrypted (never stored: `body` holds the ciphertext). */
+    public ?string $plainText = null;
+
+    /** The checked recipient, between LetterResource::creating() and the save. */
+    public ?User $pendingRecipient = null;
+
     protected $table = 'slow_mail_letters';
 
     public $timestamps = false;

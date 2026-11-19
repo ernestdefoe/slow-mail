@@ -12,7 +12,7 @@ use Flarum\User\User;
  * Privacy, in three layers:
  *
  *  1. The distance is only used when EACH member could see the other on
- *     Member Map (Places::seenBy, both ways). Otherwise the letter takes the
+ *     Member Map (PlaceSource::seenBy, both ways). Otherwise the letter takes the
  *     admin's set time. So a travel time can never tell anyone more than the
  *     map already shows them.
  *  2. The distance is rounded to a band as wide as the coarser of the two
@@ -32,7 +32,7 @@ class Journey
     public const JITTER = 1.0;
 
     public function __construct(
-        private readonly Places $places,
+        private readonly PlaceSource $places,
         private readonly Vault $vault,
         private readonly SettingsRepositoryInterface $settings,
     ) {
@@ -102,14 +102,14 @@ class Journey
     /** @return array{km_per_day: int, min: int, max: int, default: int} */
     public function speed(): array
     {
-        $min = Settings::int($this->settings->get(Settings::MIN_HOURS), Settings::DEFAULT_MIN_HOURS, 1, Settings::LONGEST_HOURS);
-        $max = Settings::int($this->settings->get(Settings::MAX_HOURS), Settings::DEFAULT_MAX_HOURS, $min, Settings::LONGEST_HOURS);
+        $min = Settings::clamp($this->settings->get(Settings::MIN_HOURS), 1, Settings::LONGEST_HOURS);
+        $max = Settings::clamp($this->settings->get(Settings::MAX_HOURS), $min, Settings::LONGEST_HOURS);
 
         return [
-            'km_per_day' => Settings::int($this->settings->get(Settings::KM_PER_DAY), Settings::DEFAULT_KM_PER_DAY, 50, 40000),
+            'km_per_day' => Settings::clamp($this->settings->get(Settings::KM_PER_DAY), 50, 40000),
             'min' => $min,
             'max' => $max,
-            'default' => Settings::int($this->settings->get(Settings::DEFAULT_HOURS), Settings::DEFAULT_DEFAULT_HOURS, $min, $max),
+            'default' => Settings::clamp($this->settings->get(Settings::DEFAULT_HOURS), $min, $max),
         ];
     }
 

@@ -3,17 +3,17 @@ import FormModal, { type IFormModalAttrs } from 'flarum/common/components/FormMo
 import Button from 'flarum/common/components/Button';
 import extractText from 'flarum/common/utils/extractText';
 import type Mithril from 'mithril';
-import { about, arrivalDate, call, countryName, errorText, t, type Envelope, type Person, type Quote } from '../api';
+import type User from 'flarum/common/models/User';
+import { about, arrivalDate, call, countryName, errorText, t, type Person, type Quote } from '../api';
+import type LetterModel from '../models/Letter';
 import { STAMPS, Stamp } from '../art';
 import { avatar } from './Envelopes';
-
-declare const m: Mithril.Static;
 
 interface Attrs extends IFormModalAttrs {
   to?: Person | null;
   replyTo?: number | null;
   home?: { postmark: string; country: string | null } | null;
-  onsent?: (letter: Envelope) => void;
+  onsent?: () => void;
 }
 
 const MAX = 6000;
@@ -259,22 +259,23 @@ export default class WriteModal extends FormModal<Attrs> {
     if (!this.to || !this.body.trim()) return;
     this.loading = true;
 
-    call<{ letter: Envelope }>('POST', '/letters', {
-      to: this.to.id,
-      body: this.body,
-      stamp: this.stamp,
-      replyTo: this.attrs.replyTo || null,
-    }).then(
-      (r) => {
-        this.loading = false;
-        this.sent = true;
-        this.attrs.onsent?.(r.letter);
-        m.redraw();
-      },
-      () => {
-        this.loading = false;
-        m.redraw();
-      }
-    );
+    // The recipient may be someone the store hasn't loaded (a suggestion): an identifier is all the relationship needs.
+    const recipient =
+      app.store.getById<User>('users', String(this.to.id)) || ({ data: { type: 'users', id: String(this.to.id) } } as unknown as User);
+    app.store
+      .createRecord<LetterModel>('slow-mail-letters')
+      .save({ body: this.body, stamp: this.stamp, replyTo: this.attrs.replyTo || null, relationships: { recipient } })
+      .then(
+        () => {
+          this.loading = false;
+          this.sent = true;
+          this.attrs.onsent?.();
+          m.redraw();
+        },
+        () => {
+          this.loading = false;
+          m.redraw();
+        }
+      );
   }
 }

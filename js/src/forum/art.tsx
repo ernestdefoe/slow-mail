@@ -9,8 +9,6 @@ import { countryName } from './api';
  * its colour from the theme (forum.less).
  */
 
-declare const m: Mithril.Static;
-
 let uid = 0;
 const nextId = (prefix: string) => `sm-${prefix}-${++uid}`;
 

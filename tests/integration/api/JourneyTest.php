@@ -166,5 +166,7 @@ class JourneyTest extends TestCase
         $this->assertSame('United States', $letter['destination']);
         $this->assertStringNotContainsString('Lyon', json_encode($letter));
         $this->assertStringNotContainsString('Nashville', json_encode($this->call('GET', '/api/slow-mail', 2)[1]));
+        // The letters themselves (Member Map's own profile line on the included users is the member's choice, not ours).
+        $this->assertStringNotContainsString('Nashville', json_encode($this->call('GET', '/api/slow-mail-letters', 2)[1]['data']));
     }
 }

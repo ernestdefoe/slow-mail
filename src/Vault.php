@@ -3,9 +3,10 @@
 namespace ErnestDefoe\SlowMail;
 
 use Flarum\Foundation\Config;
-use Flarum\Foundation\Paths;
 use Flarum\Settings\SettingsRepositoryInterface;
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Contracts\Cache\Repository as Cache;
+use Illuminate\Contracts\Filesystem\Factory;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -33,12 +34,10 @@ class Vault
     /** Where the key's fingerprint is kept (not the key). */
     public const CHECK = 'slow-mail.key_check';
 
-    private ?string $key = null;
-
     public function __construct(
-        private readonly Paths $paths,
         private readonly Config $config,
-        private readonly ConnectionInterface $db,
+        private readonly Factory $filesystem,
+        private readonly Cache $cache,
         private readonly LoggerInterface $log,
         private readonly SettingsRepositoryInterface $settings,
     ) {
@@ -117,22 +116,16 @@ class Vault
         return hash_hmac('sha256', $purpose, $this->key(), true);
     }
 
-    public function directory(): string
-    {
-        return $this->paths->storage.'/slow-mail';
-    }
+    public const DISK = 'ernestdefoe-slow-mail';
+    public const KEY_FILE = 'key';
 
-    public function keyFile(): string
-    {
-        return $this->directory().'/key';
-    }
-
+    /**
+     * Read each time it's needed, never kept on the instance: a queue worker
+     * lives for days, and must notice a changed key (assertSameKey) like a
+     * page request does.
+     */
     private function key(): string
     {
-        if ($this->key !== null) {
-            return $this->key;
-        }
-
         $configured = $this->config['slow-mail.key'] ?? null;
         if (is_string($configured) && $configured !== '') {
             $key = base64_decode($configured, true);
@@ -140,45 +133,51 @@ class Vault
                 throw new RuntimeException('config.php slow-mail.key must be 32 bytes, base64 encoded.');
             }
 
-            return $this->key = $key;
+            return $key;
         }
 
-        return $this->key = $this->keyFromFile();
+        return $this->keyFromFile();
     }
 
     private function keyFromFile(): string
     {
-        $file = $this->keyFile();
-        if (! is_file($file)) {
-            $this->createKey($file);
+        $disk = $this->filesystem->disk(self::DISK);
+        if (! $disk->exists(self::KEY_FILE)) {
+            $this->createKey($disk);
         }
 
-        $key = base64_decode(trim((string) @file_get_contents($file)), true);
+        $key = base64_decode(trim((string) $disk->get(self::KEY_FILE)), true);
         if ($key === false || strlen($key) !== SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES) {
-            throw new RuntimeException('Slow Mail cannot read its key at '.$file.'.');
+            throw new RuntimeException('Slow Mail cannot read its key at storage/slow-mail/key.');
         }
 
         return $key;
     }
 
-    private function createKey(string $file): void
+    /**
+     * Writes a new key, once: under a cache lock, so two processes can't each
+     * write their own, and only while there are no letters (letters but no key
+     * means the key was lost: a fresh one would read none of them).
+     */
+    private function createKey(Filesystem $disk): void
     {
-        if ($this->db->table('slow_mail_letters')->exists()) {
-            $this->log->critical('[slow-mail] The key at '.$file.' is missing, but there are letters: they were written with that key and cannot be opened without it. Restore storage/slow-mail/key from a backup. Sending is stopped until then.');
+        if (Letter::query()->exists()) {
+            $this->log->critical('[slow-mail] The key at storage/slow-mail/key is missing, but there are letters: they were written with that key and cannot be opened without it. Restore it from a backup. Sending is stopped until then.');
 
             throw new KeyMissing('Slow Mail\'s key is missing: restore storage/slow-mail/key from a backup.');
         }
 
-        if (! is_dir($this->directory())) {
-            @mkdir($this->directory(), 0770, true);
+        // Another request writing it right now: this one asks to be tried again rather than wait.
+        $lock = $this->cache->lock('slow-mail.key', 10);
+        if (! $lock->get()) {
+            throw new Refused(Refused::SLOW_DOWN);
         }
-
-        // Written whole to a temporary file, then linked into place: link() fails if another
-        // process got there first (then we read theirs), and nobody ever reads a half-written key.
-        $tmp = $file.'.'.bin2hex(random_bytes(6)).'.tmp';
-        file_put_contents($tmp, base64_encode(sodium_crypto_aead_xchacha20poly1305_ietf_keygen()));
-        @chmod($tmp, 0600);
-        @link($tmp, $file);
-        @unlink($tmp);
+        try {
+            if (! $disk->exists(self::KEY_FILE)) {
+                $disk->put(self::KEY_FILE, base64_encode(sodium_crypto_aead_xchacha20poly1305_ietf_keygen()));
+            }
+        } finally {
+            $lock->release();
+        }
     }
 }

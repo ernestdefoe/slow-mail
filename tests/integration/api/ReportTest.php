@@ -36,11 +36,11 @@ class ReportTest extends TestCase
     public function only_the_recipient_can_report_an_arrived_letter()
     {
         [, $transit] = $this->write(2, 3);
-        $this->assertSame(404, $this->call('POST', '/api/slow-mail/letters/'.$transit['letter']['id'].'/report', 3)[0], 'not before it arrives');
+        $this->assertSame(404, $this->report($transit['letter']['id'], 3)[0], 'not before it arrives');
 
         $id = $this->arrived();
         foreach ([2, 4, 1] as $as) {
-            $this->assertSame(404, $this->call('POST', "/api/slow-mail/letters/$id/report", $as)[0], "user $as");
+            $this->assertSame(404, $this->report($id, $as)[0], "user $as");
         }
         $this->assertSame(0, $this->database()->table('slow_mail_reports')->count());
     }
@@ -52,21 +52,23 @@ class ReportTest extends TestCase
         [, $other] = $this->write(2, 3, ['body' => 'Not reported: PRIVATE-9911']);
         $this->arrive($other['letter']['id']);
 
-        [$status] = $this->call('POST', "/api/slow-mail/letters/$id/report", 3, ['reason' => 'Unkind', 'block' => true]);
+        [$status] = $this->report($id, 3, ['reason' => 'Unkind', 'block' => true]);
         $this->assertSame(201, $status);
-        $this->assertSame(422, $this->call('POST', "/api/slow-mail/letters/$id/report", 3)[0], 'once per letter');
+        $this->assertSame(422, $this->report($id, 3)[0], 'once per letter');
 
         // Stored encrypted.
         $this->assertStringStartsWith('sm1:', $this->database()->table('slow_mail_reports')->value('body'));
 
         // Moderators (and admins) see the words of that one letter; nobody else sees the list.
-        [$s, $list, $raw] = $this->call('GET', '/api/slow-mail/reports', 4);
+        [$s, $list, $raw] = $this->call('GET', '/api/slow-mail-reports', 4);
         $this->assertSame(200, $s);
-        $this->assertStringContainsString(self::MARKER, $list['reports'][0]['body']);
-        $this->assertSame('Unkind', $list['reports'][0]['reason']);
+        $reportId = (int) $list['data'][0]['id'];
+        $this->assertStringContainsString(self::MARKER, $list['data'][0]['attributes']['body']);
+        $this->assertSame('Unkind', $list['data'][0]['attributes']['reason']);
+        $this->assertArrayNotHasKey('letter', $list['data'][0]['relationships'] ?? [], 'the words, not the letter itself');
         $this->assertStringNotContainsString('PRIVATE-9911', $raw);
         foreach ([2, 3] as $as) {
-            $this->assertSame(403, $this->call('GET', '/api/slow-mail/reports', $as)[0]);
+            $this->assertSame(403, $this->call('GET', '/api/slow-mail-reports', $as)[0]);
         }
 
         // Moderators get a notification that says nothing of the letter.
@@ -77,8 +79,8 @@ class ReportTest extends TestCase
         $this->assertSame('slow_mail_not_accepting', $this->write(2, 3)[1]['errors'][0]['code']);
 
         // Resolved: off the list.
-        $this->assertSame(204, $this->call('POST', '/api/slow-mail/reports/'.$list['reports'][0]['id'].'/resolve', 4)[0]);
-        $this->assertSame([], $this->call('GET', '/api/slow-mail/reports', 4)[1]['reports']);
-        $this->assertSame(403, $this->call('POST', '/api/slow-mail/reports/'.$list['reports'][0]['id'].'/resolve', 2)[0]);
+        $this->assertContains($this->patch('slow-mail-reports', $reportId, 2, ['resolved' => true])[0], [403, 404], 'not by a member');
+        $this->assertSame(200, $this->patch('slow-mail-reports', $reportId, 4, ['resolved' => true])[0]);
+        $this->assertSame([], $this->call('GET', '/api/slow-mail-reports', 4)[1]['data']);
     }
 }

@@ -65,9 +65,9 @@ class RulesTest extends TestCase
     {
         $this->refused($this->write(2, 2));
         $this->refused($this->write(2, 5));
-        $this->refused($this->write(2, 999));
+        $this->assertSame(404, $this->write(2, 999)[0]);
         $this->assertContains($this->write(5, 2)[0], [401, 403]);
-        $this->assertContains($this->call('POST', '/api/slow-mail/letters', null, ['to' => 2, 'body' => 'x', 'stamp' => 'owl'])[0], [400, 401, 403]);
+        $this->assertContains($this->call('POST', '/api/slow-mail-letters', null, ['data' => ['type' => 'slow-mail-letters', 'attributes' => ['body' => 'x', 'stamp' => 'owl']]])[0], [400, 401, 403]);
         $this->assertSame(0, $this->database()->table('slow_mail_letters')->count());
     }
 

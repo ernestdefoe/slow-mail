@@ -87,7 +87,7 @@ class GdprTest extends TestCase
         $this->write(2, 3);
         $this->write(3, 2);
         $this->write(3, 4);
-        $this->call('POST', '/api/slow-mail/seeking', 2, ['interests' => 'tea', 'region' => 'anywhere']);
+        $this->seek(2, ['interests' => ['tea'], 'region' => 'anywhere']);
         $this->call('POST', '/api/slow-mail/blocks', 2, ['user' => 4, 'blocked' => true]);
 
         $request = ErasureRequest::unguarded(fn () => ErasureRequest::create(['user_id' => 2, 'status' => 'manual', 'created_at' => Carbon::now(), 'user_confirmed_at' => Carbon::now(), 'processed_mode' => 'anonymization']));

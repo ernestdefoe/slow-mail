@@ -1,15 +1,13 @@
 import app from 'flarum/forum/app';
 import FormModal, { type IFormModalAttrs } from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
-import type Mithril from 'mithril';
-import { call, t, type Person } from '../api';
-
-declare const m: Mithril.Static;
+import { t, type Person } from '../api';
+import type LetterModel from '../models/Letter';
+import type Report from '../models/Report';
 
 interface Attrs extends IFormModalAttrs {
-  letterId: number;
+  letter: LetterModel;
   sender: Person;
-  ondone: (blocked: boolean) => void;
 }
 
 /** Show one letter to the moderators, on purpose: the only way its words leave the two members. */
@@ -58,16 +56,18 @@ export default class ReportModal extends FormModal<Attrs> {
   onsubmit(e: SubmitEvent) {
     e.preventDefault();
     this.loading = true;
-    call('POST', '/letters/' + this.attrs.letterId + '/report', { reason: this.reason, block: this.block }).then(
-      () => {
-        this.hide();
-        app.alerts.show({ type: 'success' }, t('report.done'));
-        this.attrs.ondone(this.block);
-      },
-      () => {
-        this.loading = false;
-        m.redraw();
-      }
-    );
+    app.store
+      .createRecord<Report>('slow-mail-reports')
+      .save({ reason: this.reason, block: this.block, relationships: { letter: this.attrs.letter } })
+      .then(
+        () => {
+          this.hide();
+          app.alerts.show({ type: 'success' }, t('report.done'));
+        },
+        () => {
+          this.loading = false;
+          m.redraw();
+        }
+      );
   }
 }

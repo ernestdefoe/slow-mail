@@ -13,8 +13,14 @@ final class Stamps
 
     public const THEMES = ['lighthouse', 'mountain', 'wave', 'balloon', 'fox', 'cactus', 'blossom', 'aurora', 'owl', 'teapot', 'moon', 'whale'];
 
-    public static function valid(string $stamp): bool
+    /** @return list<string> */
+    public static function all(): array
     {
-        return $stamp === self::HOME || in_array($stamp, self::THEMES, true);
+        return array_merge([self::HOME], self::THEMES);
+    }
+
+    public static function valid(?string $stamp): bool
+    {
+        return in_array($stamp, self::all(), true);
     }
 }

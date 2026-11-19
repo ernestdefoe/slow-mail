@@ -54,8 +54,8 @@ class DeliveryTest extends TestCase
         $this->app()->getContainer()->make(Repository::class)->forever(Mailroom::NEXT, (string) $past->getTimestamp());
 
         // Any visit, a guest's included, delivers it: the recipient's inbox has it.
-        [, $page] = $this->call('GET', '/api/slow-mail', 3);
-        $this->assertSame($id, $page['inbox'][0]['id'] ?? null);
+        $this->call('GET', '/api/forum', null);
+        $this->assertSame($id, $this->box(3, 'in')[0]['id'] ?? null);
         $this->assertSame(1, $this->database()->table('notifications')->where('type', 'slowMailArrived')->count());
     }
 
@@ -72,8 +72,8 @@ class DeliveryTest extends TestCase
         $this->assertNull($row->delivered_at);
         $this->assertNotNull($row->returned_at);
         $this->assertSame(0, $this->database()->table('notifications')->count());
-        $this->assertSame(404, $this->call('GET', '/api/slow-mail/letters/'.$id, 3)[0]);
-        $this->assertSame('returned', $this->call('GET', '/api/slow-mail', 2)[1]['outbox'][0]['status']);
+        $this->assertSame(404, $this->letter($id, 3)[0]);
+        $this->assertSame('returned', $this->box(2, 'out')[0]['status']);
     }
 
     #[Test]

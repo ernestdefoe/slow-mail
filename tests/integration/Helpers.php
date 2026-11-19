@@ -37,19 +37,68 @@ trait Helpers
     {
         $request = $this->request($method, $path, array_filter(['authenticatedAs' => $as, 'json' => $json ?: null]));
         parse_str((string) parse_url($path, PHP_URL_QUERY), $query);
+        $request = $request->withUri($request->getUri()->withQuery(''));
         $response = $this->send($query ? $request->withQueryParams($query) : $request);
         $body = (string) $response->getBody();
 
         return [$response->getStatusCode(), json_decode($body, true), $body];
     }
 
+    /**
+     * Sends a letter through the API. The answer comes back flattened, as
+     * [status, ['letter' => id + attributes] or the error document, raw].
+     */
     protected function write(int $from, int $to, array $extra = []): array
     {
-        return $this->call('POST', '/api/slow-mail/letters', $from, $extra + [
-            'to' => $to,
-            'body' => "Dear friend,\n".self::MARKER."\nWrite soon.",
-            'stamp' => 'lighthouse',
-        ]);
+        $attributes = $extra + ['body' => "Dear friend,\n".self::MARKER."\nWrite soon.", 'stamp' => 'lighthouse'];
+        [$status, $body, $raw] = $this->call('POST', '/api/slow-mail-letters', $from, ['data' => [
+            'type' => 'slow-mail-letters',
+            'attributes' => $attributes,
+            'relationships' => ['recipient' => ['data' => ['type' => 'users', 'id' => (string) $to]]],
+        ]]);
+
+        return [$status, isset($body['data']) ? ['letter' => $this->flat($body['data'])] : $body, $raw];
+    }
+
+    /** One letter as $as sees it: [status, id + attributes, raw]. */
+    protected function letter(int $id, ?int $as): array
+    {
+        [$status, $body, $raw] = $this->call('GET', '/api/slow-mail-letters/'.$id, $as);
+
+        return [$status, isset($body['data']) ? $this->flat($body['data']) : $body, $raw];
+    }
+
+    /** @return list<array<string, mixed>> the actor's inbox (in) or outbox (out), newest first */
+    protected function box(int $as, string $box): array
+    {
+        [, $body] = $this->call('GET', '/api/slow-mail-letters?filter[box]='.$box, $as);
+
+        return array_map(fn ($row) => $this->flat($row), $body['data'] ?? []);
+    }
+
+    protected function patch(string $type, int $id, ?int $as, array $attributes): array
+    {
+        return $this->call('PATCH', "/api/$type/$id", $as, ['data' => ['type' => $type, 'id' => (string) $id, 'attributes' => $attributes]]);
+    }
+
+    protected function report(int $letterId, ?int $as, array $attributes = []): array
+    {
+        return $this->call('POST', '/api/slow-mail-reports', $as, ['data' => [
+            'type' => 'slow-mail-reports',
+            'attributes' => $attributes,
+            'relationships' => ['letter' => ['data' => ['type' => 'slow-mail-letters', 'id' => (string) $letterId]]],
+        ]]);
+    }
+
+    protected function seek(int $as, array $attributes): array
+    {
+        return $this->call('POST', '/api/slow-mail-seekers', $as, ['data' => ['type' => 'slow-mail-seekers', 'attributes' => $attributes]]);
+    }
+
+    /** @return array<string, mixed> */
+    protected function flat(array $resource): array
+    {
+        return ['id' => (int) $resource['id']] + ($resource['attributes'] ?? []);
     }
 
     /** Moves time past the letter's arrival and runs the scheduler's delivery. */

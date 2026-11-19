@@ -8,8 +8,6 @@ import type Mithril from 'mithril';
 import { about, call, countryName, shortDate, t, userUrl, type Letter } from '../api';
 import { Corner, avatar } from './Envelopes';
 
-declare const m: Mithril.Static;
-
 interface Attrs {
   letter: Letter;
   onreply: () => void;
@@ -60,32 +58,9 @@ export default class LetterView extends Component<Attrs> {
     const letter = this.attrs.letter;
     if (this.stage !== 'open') return this.opening(letter);
 
-    const other = letter.with;
-    const mine = letter.box === 'out';
-    const from = letter.postmark || countryName(letter.origin);
-
     return (
       <article className="SlowMailLetter">
-        <header className="SlowMailLetter-head">
-          {avatar(other, 'SlowMailLetter-avatar')}
-          <div className="SlowMailLetter-who">
-            <span className="SlowMailLetter-label">{mine ? t('envelope.to') : t('envelope.from')}</span>
-            {other ? (
-              <Link className="SlowMailLetter-name" href={userUrl(other)}>
-                {other.displayName}
-              </Link>
-            ) : (
-              <span className="SlowMailLetter-name">{t('envelope.someone')}</span>
-            )}
-            <span className="SlowMailLetter-meta">
-              {from ? t('letter.sent_from', { date: shortDate(letter.sentAt), place: from }) : t('letter.sent', { date: shortDate(letter.sentAt) })}
-              {letter.deliveredAt
-                ? ' · ' + extractText(t('letter.arrived', { date: shortDate(letter.deliveredAt), time: about(letter.travelHours) }))
-                : ''}
-            </span>
-          </div>
-          {Corner({ letter })}
-        </header>
+        {this.head(letter)}
         <div className="SlowMailLetter-paper">
           {letter.unreadable ? (
             <p className="SlowMailLetter-unreadable">{t('letter.unreadable')}</p>
@@ -93,35 +68,71 @@ export default class LetterView extends Component<Attrs> {
             <div className="SlowMailLetter-body">{letter.body}</div>
           )}
         </div>
-        <footer className="SlowMailLetter-actions">
-          {!mine && other ? (
-            <Button className="Button Button--primary" icon="fas fa-pen-nib" onclick={() => this.attrs.onreply()}>
-              {t('letter.reply')}
-            </Button>
-          ) : null}
-          {other ? (
-            <Link className="Button" href={app.route('slow-mail.pal', { id: other.id })}>
-              <Icon name="fas fa-envelopes-bulk" /> {t('letter.all_letters')}
-            </Link>
-          ) : null}
-          {mine && letter.status === 'transit' ? null : (
-            <Button className="Button Button--flat" icon="fas fa-box-archive" onclick={() => this.attrs.onhide()}>
-              {t('letter.put_away')}
-            </Button>
-          )}
-          {!mine && other ? (
-            <Button className="Button Button--flat SlowMailLetter-block" icon="fas fa-ban" onclick={() => this.attrs.onblock()}>
-              {t('letter.block', { name: other.displayName })}
-            </Button>
-          ) : null}
-          {!mine && other ? (
-            <Button className="Button Button--flat SlowMailLetter-report" icon="fas fa-flag" onclick={() => this.attrs.onreport()}>
-              {t('letter.report')}
-            </Button>
-          ) : null}
-        </footer>
+        <footer className="SlowMailLetter-actions">{this.actions(letter)}</footer>
       </article>
     );
+  }
+
+  head(letter: Letter) {
+    const other = letter.with;
+    const from = letter.postmark || countryName(letter.origin);
+    const arrived = letter.deliveredAt
+      ? ' · ' + extractText(t('letter.arrived', { date: shortDate(letter.deliveredAt), time: about(letter.travelHours) }))
+      : '';
+
+    return (
+      <header className="SlowMailLetter-head">
+        {avatar(other, 'SlowMailLetter-avatar')}
+        <div className="SlowMailLetter-who">
+          <span className="SlowMailLetter-label">{letter.box === 'out' ? t('envelope.to') : t('envelope.from')}</span>
+          {other ? (
+            <Link className="SlowMailLetter-name" href={userUrl(other)}>
+              {other.displayName}
+            </Link>
+          ) : (
+            <span className="SlowMailLetter-name">{t('envelope.someone')}</span>
+          )}
+          <span className="SlowMailLetter-meta">
+            {from ? t('letter.sent_from', { date: shortDate(letter.sentAt), place: from }) : t('letter.sent', { date: shortDate(letter.sentAt) })}
+            {arrived}
+          </span>
+        </div>
+        {Corner({ letter })}
+      </header>
+    );
+  }
+
+  actions(letter: Letter): Mithril.Children {
+    const other = letter.with;
+    const received = letter.box === 'in' && other;
+
+    return [
+      received ? (
+        <Button className="Button Button--primary" icon="fas fa-pen-nib" onclick={() => this.attrs.onreply()}>
+          {t('letter.reply')}
+        </Button>
+      ) : null,
+      other ? (
+        <Link className="Button" href={app.route('slow-mail.pal', { id: other.id })}>
+          <Icon name="fas fa-envelopes-bulk" /> {t('letter.all_letters')}
+        </Link>
+      ) : null,
+      letter.status === 'transit' ? null : (
+        <Button className="Button Button--flat" icon="fas fa-box-archive" onclick={() => this.attrs.onhide()}>
+          {t('letter.put_away')}
+        </Button>
+      ),
+      received ? (
+        <Button className="Button Button--flat SlowMailLetter-block" icon="fas fa-ban" onclick={() => this.attrs.onblock()}>
+          {t('letter.block', { name: other.displayName })}
+        </Button>
+      ) : null,
+      received ? (
+        <Button className="Button Button--flat SlowMailLetter-report" icon="fas fa-flag" onclick={() => this.attrs.onreport()}>
+          {t('letter.report')}
+        </Button>
+      ) : null,
+    ];
   }
 
   opening(letter: Letter) {

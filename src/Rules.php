@@ -3,10 +3,9 @@
 namespace ErnestDefoe\SlowMail;
 
 use Carbon\Carbon;
-use Flarum\Extension\ExtensionManager;
+use ErnestDefoe\SlowMail\Integration\Integrations;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
-use Illuminate\Database\ConnectionInterface;
 
 /**
  * Who may write to whom, and how much.
@@ -14,16 +13,15 @@ use Illuminate\Database\ConnectionInterface;
  * Every reason a member can't be written to answers with the same code
  * (`slow_mail_not_accepting`), so a refusal never says WHICH it was: a
  * block, letters turned off, private messages turned off, or a recipient
- * without Slow Mail. Blocks count both ways, ours and Parley's; fof/byobu's
- * "block private discussions", Parley's "who can message me" and
- * flarum/messages' per-member rule (`message` ability, e.g. anonymised
- * accounts) are respected when those are enabled.
+ * without Slow Mail. Blocks count both ways. Other extensions have their
+ * say through Integrations (Parley's blocks and "who can message me",
+ * fof/byobu's "block private discussions", flarum/messages' `message`
+ * ability), each one present only while its extension is enabled.
  */
 class Rules
 {
     public function __construct(
-        private readonly ConnectionInterface $db,
-        private readonly ExtensionManager $extensions,
+        private readonly Integrations $integrations,
         private readonly SettingsRepositoryInterface $settings,
     ) {
     }
@@ -53,46 +51,55 @@ class Rules
             return false;
         }
 
-        $accept = (string) $recipient->getPreference(Settings::ACCEPT, Settings::ACCEPT_EVERYONE);
+        $accept = (string) $recipient->getPreference(Settings::ACCEPT);
         if ($accept === Settings::ACCEPT_NOBODY || ($accept === Settings::ACCEPT_PALS && ! $this->wroteTo($recipient->id, $sender->id))) {
             return false;
         }
 
-        if ($this->blocked($sender->id, $recipient->id)) {
-            return false;
+        return ! $this->blocked($sender->id, $recipient->id) && $this->integrations->allow($sender, $recipient);
+    }
+
+    /** A block either way: ours, or another extension's (Integrations). */
+    public function blocked(int $a, int $b): bool
+    {
+        return Block::query()->between($a, $b)->exists() || $this->integrations->blockedEitherWay($a, $b);
+    }
+
+    /**
+     * Which of these sender/recipient pairs are blocked either way, as "sender:recipient" keys: one query for
+     * ours, and each extension's list once per sender (Integrations).
+     *
+     * @param list<array{int, int}> $pairs
+     * @return array<string, true>
+     */
+    public function blockedPairs(array $pairs): array
+    {
+        if (! $pairs) {
+            return [];
         }
 
-        if ($this->extensions->isEnabled('fof-byobu') && $recipient->getAttribute('blocks_byobu_pd')) {
-            return false;
+        $ids = array_values(array_unique(array_merge(...$pairs)));
+        $ours = [];
+        foreach (Block::query()->whereIn('user_id', $ids)->whereIn('blocked_id', $ids)->get(['user_id', 'blocked_id']) as $row) {
+            $ours[$row->user_id.':'.$row->blocked_id] = true;
         }
 
-        if ($this->extensions->isEnabled('flarum-messages') && ! $sender->can('message', $recipient)) {
-            return false;
-        }
-
-        // Parley's "who can message me": nobody, or only people they follow.
-        if ($this->extensions->isEnabled('ernestdefoe-parley')) {
-            $parley = (string) $recipient->getPreference('parleyWhoCanMessage', 'everyone');
-            if ($parley === 'nobody' || ($parley === 'following' && ! $this->db->table('parley_follows')->where('user_id', $recipient->id)->where('followed_id', $sender->id)->exists())) {
-                return false;
+        $theirs = [];
+        $blocked = [];
+        foreach ($pairs as [$a, $b]) {
+            $theirs[$a] ??= $this->integrations->blockedWith($a);
+            if (isset($ours["$a:$b"]) || isset($ours["$b:$a"]) || isset($theirs[$a][$b])) {
+                $blocked["$a:$b"] = true;
             }
         }
 
-        return true;
+        return $blocked;
     }
 
-    /** A block either way: ours, or Parley's when it's enabled. */
-    public function blocked(int $a, int $b): bool
+    /** Whether a member may still send: not suspended (Integrations) and still holding the permission. */
+    public function inGoodStanding(User $user): bool
     {
-        $either = fn ($q) => $q->where(fn ($q) => $q->where('user_id', $a)->where('blocked_id', $b))
-            ->orWhere(fn ($q) => $q->where('user_id', $b)->where('blocked_id', $a));
-
-        if ($this->db->table('slow_mail_blocks')->where($either)->exists()) {
-            return true;
-        }
-
-        return $this->extensions->isEnabled('ernestdefoe-parley') && $this->db->getSchemaBuilder()->hasTable('parley_blocks')
-            && $this->db->table('parley_blocks')->where($either)->exists();
+        return $this->integrations->inGoodStanding($user) && $user->hasPermission(Settings::SEND);
     }
 
     /** $from has written to $to, and the letter has arrived (one still on its way must not be given away). */
@@ -135,7 +142,7 @@ class Rules
                     ->whereNotNull('theirs.delivered_at')
                     ->whereColumn('theirs.delivered_at', '<', 'slow_mail_letters.sent_at'))
                 ->count();
-            if ($cold >= Settings::int($this->settings->get(Settings::NEW_PALS), Settings::DEFAULT_NEW_PALS, 1, 100)) {
+            if ($cold >= Settings::clamp($this->settings->get(Settings::NEW_PALS), 1, 100)) {
                 return [429, 'slow_mail_new_pals_limit'];
             }
         }
@@ -145,7 +152,7 @@ class Rules
 
     public function daily(): int
     {
-        return Settings::int($this->settings->get(Settings::DAILY), Settings::DEFAULT_DAILY, 1, 500);
+        return Settings::clamp($this->settings->get(Settings::DAILY), 1, 500);
     }
 
     /** They have a delivered letter between them, either way. */

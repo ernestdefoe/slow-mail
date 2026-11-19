@@ -1,5 +1,10 @@
 import app from 'flarum/forum/app';
 import extractText from 'flarum/common/utils/extractText';
+import type User from 'flarum/common/models/User';
+import type LetterModel from './models/Letter';
+import { t } from './t';
+
+export { t };
 
 export interface Person {
   id: number;
@@ -8,9 +13,10 @@ export interface Person {
   avatarUrl: string | null;
 }
 
-/** An envelope as the API sends it. Never the words: those come with a single letter. */
+/** An envelope, as the components draw it (from a `slow-mail-letters` model: toEnvelope). Never the words. */
 export interface Envelope {
   id: number;
+  model: LetterModel;
   box: 'in' | 'out';
   with: Person | null;
   stamp: string;
@@ -53,11 +59,11 @@ export interface Match {
   country: string | null;
 }
 
+/** GET /api/slow-mail: the post office at a glance. The letters themselves come from the store. */
 export interface PageData {
-  inbox: Envelope[];
-  outbox: Envelope[];
   pals: Pal[];
-  seeker: { interests: string[]; region: string } | null;
+  unread: number;
+  transit: number;
   home: { postmark: string; country: string | null } | null;
   can: { send: boolean; map: boolean };
   limits: { daily: number; today: number; maxLength: number };
@@ -75,9 +81,8 @@ export interface Quote {
   destination?: string | null;
   mapped?: boolean;
   limit?: string | null;
+  blocked?: boolean;
 }
-
-export const t = (key: string, params: Record<string, any> = {}) => app.translator.trans(`ernestdefoe-slow-mail.forum.${key}`, params);
 
 /** The sentence for an error answer from our endpoints. */
 export function errorText(error: any): string {
@@ -141,3 +146,38 @@ export function countryName(code: string | null | undefined): string | null {
 export function userUrl(person: Person): string {
   return app.route('user', { username: person.slug });
 }
+
+/** A store user as the components draw people. */
+export function person(user: User | null | false | undefined): Person | null {
+  return user ? { id: Number(user.id()), slug: user.slug(), displayName: user.displayName(), avatarUrl: user.avatarUrl() || null } : null;
+}
+
+/** A `slow-mail-letters` model as an envelope (and, from a single letter, its words). */
+export function toEnvelope(letter: LetterModel): Letter {
+  const box = letter.box();
+  return {
+    id: Number(letter.id()),
+    model: letter,
+    box,
+    with: person(box === 'out' ? letter.recipient() : letter.sender()),
+    stamp: letter.stamp(),
+    postmark: letter.postmark(),
+    origin: letter.origin(),
+    sentAt: letter.sentAt(),
+    words: letter.words(),
+    replyTo: letter.replyTo(),
+    deliveredAt: letter.deliveredAt(),
+    travelHours: letter.travelHours(),
+    status: letter.status(),
+    arrivesAt: letter.arrivesAt(),
+    destination: letter.destination(),
+    read: letter.read(),
+    body: letter.body() ?? null,
+    // A single letter always carries its words; null there means they can't be decrypted any more.
+    unreadable: letter.body() === null,
+    firstRead: false,
+  };
+}
+
+export const letters = (filter: Record<string, string>): Promise<Envelope[]> =>
+  app.store.find<LetterModel[]>('slow-mail-letters', { filter, page: { limit: 50 } }).then((list) => list.map(toEnvelope));

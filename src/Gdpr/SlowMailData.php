@@ -2,13 +2,13 @@
 
 namespace ErnestDefoe\SlowMail\Gdpr;
 
+use ErnestDefoe\SlowMail\Block;
 use ErnestDefoe\SlowMail\Forget;
 use ErnestDefoe\SlowMail\Letter;
 use ErnestDefoe\SlowMail\Report;
 use ErnestDefoe\SlowMail\Seeker;
 use ErnestDefoe\SlowMail\Vault;
 use Flarum\Gdpr\Data\Type;
-use Illuminate\Database\ConnectionInterface;
 
 /**
  * A member's letters in a data export: the ones they wrote, and the ones that
@@ -41,27 +41,37 @@ class SlowMailData extends Type
 
     public function export(): ?array
     {
-        $vault = resolve(Vault::class);
+        $self = ExportActor::isSelf((int) $this->user->id);
+        $export = $this->letters($self);
+
+        return $self ? array_merge($export, $this->ownRecords()) : $export;
+    }
+
+    /**
+     * Their own export: what they sent (on its way or not) and what reached them, words included. Anyone
+     * else's export of them: only letters that have arrived, and only when and how long, never who with.
+     *
+     * @return list<array<string, string>>
+     */
+    private function letters(bool $self): array
+    {
         $id = (int) $this->user->id;
-        $self = ExportActor::isSelf($id);
+        // flarum/gdpr builds export types with `new` and fixed arguments, so the Vault can't be injected here.
+        $vault = $self ? resolve(Vault::class) : null;
         $export = [];
 
-        // Their own export: what they sent (on its way or not) and what reached them. Anyone else's
-        // export of them: only letters that have arrived, so it can't show a letter still travelling.
         $letters = Letter::query()
             ->where(fn ($q) => $q->where('sender_id', $id)->when(! $self, fn ($q) => $q->whereNotNull('delivered_at')))
-            ->orWhere(fn ($q) => $q->where('recipient_id', $id)->whereNotNull('delivered_at'))
-            ->orderBy('id')->get();
+            ->orWhere(fn ($q) => $q->where('recipient_id', $id)->whereNotNull('delivered_at'));
 
-        foreach ($letters as $letter) {
+        foreach ($letters->lazyById(200) as $letter) {
             $row = [
                 'direction' => $letter->sender_id === $id ? 'sent' : 'received',
                 'sent_at' => $letter->sent_at->toIso8601String(),
                 'delivered_at' => $letter->delivered_at?->toIso8601String(),
                 'words' => $letter->words,
             ];
-            // Who they wrote to, where from and the words: only in their own export.
-            if ($self) {
+            if ($vault) {
                 $row += [
                     'with_user_id' => $letter->sender_id === $id ? $letter->recipient_id : $letter->sender_id,
                     'stamp' => $letter->stamp,
@@ -72,9 +82,18 @@ class SlowMailData extends Type
             $export[] = ["slow-mail/letter-{$letter->id}.json" => $this->encodeForExport($row)];
         }
 
-        if (! $self) {
-            return $export;
-        }
+        return $export;
+    }
+
+    /**
+     * Their pen-pal listing, the reports they filed and who they blocked: their own export only.
+     *
+     * @return list<array<string, string>>
+     */
+    private function ownRecords(): array
+    {
+        $id = (int) $this->user->id;
+        $export = [];
 
         if ($seeker = Seeker::query()->find($id)) {
             $export[] = ['slow-mail/pen-pal-listing.json' => $this->encodeForExport(['interests' => $seeker->interestList(), 'region' => $seeker->region])];
@@ -87,7 +106,7 @@ class SlowMailData extends Type
             ])->all())];
         }
 
-        $blocks = resolve(ConnectionInterface::class)->table('slow_mail_blocks')->where('user_id', $id)->pluck('blocked_id')->all();
+        $blocks = Block::query()->where('user_id', $id)->pluck('blocked_id')->all();
         if ($blocks) {
             $export[] = ['slow-mail/blocked.json' => $this->encodeForExport(['user_ids' => $blocks])];
         }

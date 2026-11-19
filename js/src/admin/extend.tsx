@@ -1,8 +1,5 @@
 import app from 'flarum/admin/app';
 import Extend from 'flarum/common/extenders';
-import type Mithril from 'mithril';
-
-declare const m: Mithril.Static;
 
 const t = (key: string) => app.translator.trans(`ernestdefoe-slow-mail.admin.${key}`, {}, true);
 

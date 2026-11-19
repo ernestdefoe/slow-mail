@@ -30,6 +30,9 @@ class Report extends AbstractModel
 
     protected $table = 'slow_mail_reports';
 
+    /** "Also stop letters between us", between ReportResource's field and created(). Not stored. */
+    public bool $blockSender = false;
+
     public $timestamps = false;
 
     protected $casts = [
@@ -53,6 +56,12 @@ class Report extends AbstractModel
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /** @return BelongsTo<Letter, $this> */
+    public function letter(): BelongsTo
+    {
+        return $this->belongsTo(Letter::class, 'letter_id');
     }
 
     public function context(): string

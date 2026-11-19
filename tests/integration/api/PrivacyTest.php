@@ -25,7 +25,9 @@ class PrivacyTest extends TestCase
     /** Every place a letter could surface, for these viewers. */
     private function assertNowhere(int $id, array $viewers): void
     {
-        $paths = ['/api/slow-mail', '/api/slow-mail/letters/'.$id, '/api/slow-mail/pals/2', '/api/slow-mail/pals/3', '/api/users/2', '/api/users/3', '/api/users?include=groups', '/api/forum', '/api/notifications', '/api/discussions', '/api/slow-mail/matches'];
+        $paths = ['/api/slow-mail', '/api/slow-mail-letters', '/api/slow-mail-letters?filter[box]=in', '/api/slow-mail-letters?filter[with]=2',
+            '/api/slow-mail-letters?filter[with]=3', '/api/slow-mail-letters/'.$id, '/api/slow-mail-reports', '/api/users/2', '/api/users/3',
+            '/api/users?include=groups', '/api/forum', '/api/notifications', '/api/discussions', '/api/slow-mail/matches'];
 
         foreach ($viewers as $as) {
             foreach ($paths as $path) {
@@ -59,16 +61,17 @@ class PrivacyTest extends TestCase
         // The recipient, an admin, another member and a guest: nothing at all, not even the envelope.
         $this->assertNowhere($id, [3, 1, 4, null]);
         foreach ([3, 1, 4] as $as) {
-            $this->assertSame(404, $this->call('GET', '/api/slow-mail/letters/'.$id, $as)[0]);
+            $this->assertSame(404, $this->letter($id, $as)[0]);
         }
         $this->assertSame(0, $this->database()->table('notifications')->count());
 
-        // The sender sees the envelope with its journey, and may reread their own words.
-        [, $page] = $this->call('GET', '/api/slow-mail', 2);
-        $this->assertSame('transit', $page['outbox'][0]['status']);
-        [$status, $own] = $this->call('GET', '/api/slow-mail/letters/'.$id, 2);
+        // The sender sees the envelope with its journey (no words in a list), and may reread their own words.
+        $outbox = $this->box(2, 'out');
+        $this->assertSame('transit', $outbox[0]['status']);
+        $this->assertArrayNotHasKey('body', $outbox[0]);
+        [$status, $own] = $this->letter($id, 2);
         $this->assertSame(200, $status);
-        $this->assertStringContainsString(self::MARKER, $own['letter']['body']);
+        $this->assertStringContainsString(self::MARKER, $own['body']);
     }
 
     #[Test]
@@ -78,27 +81,28 @@ class PrivacyTest extends TestCase
         $id = $body['letter']['id'];
         $this->arrive($id);
 
-        [, $page] = $this->call('GET', '/api/slow-mail', 3);
-        $this->assertSame($id, $page['inbox'][0]['id']);
-        $this->assertArrayNotHasKey('body', $page['inbox'][0], 'the inbox holds envelopes, not letters');
-        $this->assertFalse($page['inbox'][0]['read']);
+        $inbox = $this->box(3, 'in');
+        $this->assertSame($id, $inbox[0]['id']);
+        $this->assertArrayNotHasKey('body', $inbox[0], 'the inbox holds envelopes, not letters');
+        $this->assertArrayNotHasKey('status', $inbox[0], 'nor the sender\'s view of the journey');
+        $this->assertFalse($inbox[0]['read']);
 
-        [$status, $letter] = $this->call('GET', '/api/slow-mail/letters/'.$id, 3);
+        [$status, $letter] = $this->letter($id, 3);
         $this->assertSame(200, $status);
-        $this->assertStringContainsString(self::MARKER, $letter['letter']['body']);
-        $this->assertFalse($letter['letter']['read']);
-        // Reading is a POST (a GET that changed state could be fired by an <img>), and only the recipient's counts.
-        $this->assertFalse($this->call('GET', '/api/slow-mail/letters/'.$id, 3)[1]['letter']['read']);
-        $this->assertSame(204, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 2)[0]);
+        $this->assertStringContainsString(self::MARKER, $letter['body']);
+        $this->assertFalse($letter['read']);
+        // Reading is a PATCH (a GET that changed state could be fired by an <img>), and only the recipient's counts.
+        $this->assertFalse($this->letter($id, 3)[1]['read']);
+        $this->patch('slow-mail-letters', $id, 2, ['read' => true]);
         $this->assertNull($this->database()->table('slow_mail_letters')->where('id', $id)->value('read_at'));
-        $this->assertSame(204, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 3)[0]);
-        $this->assertTrue($this->call('GET', '/api/slow-mail/letters/'.$id, 3)[1]['letter']['read']);
-        $this->assertSame(404, $this->call('POST', '/api/slow-mail/letters/'.$id.'/read', 4)[0]);
+        $this->assertSame(200, $this->patch('slow-mail-letters', $id, 3, ['read' => true])[0]);
+        $this->assertTrue($this->letter($id, 3)[1]['read']);
+        $this->assertSame(404, $this->patch('slow-mail-letters', $id, 4, ['read' => true])[0]);
 
         // Admin, another member, guest: still nothing.
         $this->assertNowhere($id, [1, 4, null]);
         foreach ([1, 4, null] as $as) {
-            $this->assertContains($this->call('GET', '/api/slow-mail/letters/'.$id, $as)[0], [401, 404]);
+            $this->assertContains($this->letter($id, $as)[0], [401, 404]);
         }
 
         // The words never ride in a notification, even the recipient's own.
@@ -132,14 +136,14 @@ class PrivacyTest extends TestCase
         [, $body] = $this->write(2, 3);
         $id = $body['letter']['id'];
 
-        $this->assertSame(422, $this->call('DELETE', '/api/slow-mail/letters/'.$id, 2)[0], 'not while it travels');
+        $this->assertSame(422, $this->call('DELETE', '/api/slow-mail-letters/'.$id, 2)[0], 'not while it travels');
         $this->arrive($id);
 
-        $this->assertSame(204, $this->call('DELETE', '/api/slow-mail/letters/'.$id, 3)[0]);
-        $this->assertSame(404, $this->call('GET', '/api/slow-mail/letters/'.$id, 3)[0]);
-        $this->assertSame(200, $this->call('GET', '/api/slow-mail/letters/'.$id, 2)[0]);
+        $this->assertSame(204, $this->call('DELETE', '/api/slow-mail-letters/'.$id, 3)[0]);
+        $this->assertSame(404, $this->letter($id, 3)[0]);
+        $this->assertSame(200, $this->letter($id, 2)[0]);
 
-        $this->assertSame(204, $this->call('DELETE', '/api/slow-mail/letters/'.$id, 2)[0]);
+        $this->assertSame(204, $this->call('DELETE', '/api/slow-mail-letters/'.$id, 2)[0]);
         $this->assertSame(0, $this->database()->table('slow_mail_letters')->count(), 'gone once both put it away');
     }
 }
